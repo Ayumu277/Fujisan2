@@ -1,103 +1,293 @@
-import Image from "next/image";
+'use client';
+
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  ShieldCheckIcon,
+  XCircleIcon,
+  QuestionMarkCircleIcon,
+  DocumentTextIcon,
+  ArrowDownTrayIcon,
+  SparklesIcon,
+  EyeIcon,
+  CpuChipIcon
+} from '@heroicons/react/24/outline';
+import FileUploader from './components/FileUploader';
+import ResultDisplay from './components/ResultDisplay';
+import { UploadedFile, ProcessingResult } from './types';
 
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [files, setFiles] = useState<UploadedFile[]>([]);
+  const [history, setHistory] = useState<Array<UploadedFile & { result: ProcessingResult }>>([]);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+  // ファイルが追加されたら自動的に処理を開始
+  useEffect(() => {
+    files.forEach(file => {
+      if (file.status === 'waiting') {
+        handleStatusUpdate(file.id, 'processing');
+      }
+    });
+  }, [files]);
+
+  const handleFilesSelected = (newFiles: UploadedFile[]) => {
+    setFiles(prevFiles => [...prevFiles, ...newFiles]);
+  };
+
+  const handleComplete = (id: string, result: ProcessingResult) => {
+    setFiles(prevFiles =>
+      prevFiles.map(file =>
+        file.id === id ? { ...file, result } : file
+      )
+    );
+
+    // 履歴に追加
+    const completedFile = files.find(f => f.id === id);
+    if (completedFile) {
+      setHistory(prev => [...prev, { ...completedFile, result }]);
+    }
+  };
+
+  const handleStatusUpdate = (id: string, status: UploadedFile['status']) => {
+    setFiles(prevFiles =>
+      prevFiles.map(file =>
+        file.id === id ? { ...file, status } : file
+      )
+    );
+  };
+
+  const getTotalStats = () => {
+    const completed = files.filter(f => f.status === 'completed');
+    const ok = completed.filter(f => f.result?.judgment === '○').length;
+    const ng = completed.filter(f => f.result?.judgment === '×').length;
+    const unknown = completed.filter(f => f.result?.judgment === '?').length;
+    return { total: files.length, completed: completed.length, ok, ng, unknown };
+  };
+
+  const stats = getTotalStats();
+
+  return (
+    <main className="min-h-screen py-8 px-4">
+      <div className="container mx-auto">
+        {/* ヘッダー */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8 }}
+          className="text-center mb-12"
+        >
+          <div className="flex items-center justify-center mb-6">
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+              className="mr-4"
+            >
+              <SparklesIcon className="w-12 h-12 text-blue-400" />
+            </motion.div>
+            <motion.h1 
+              className="text-5xl font-bold bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 bg-clip-text text-transparent"
+              initial={{ scale: 0.5 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.2, type: "spring", stiffness: 260, damping: 20 }}
+            >
+              AI違法転載検出システム
+            </motion.h1>
+          </div>
+          
+          <motion.p 
+            className="text-xl text-slate-300 max-w-2xl mx-auto mb-8"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5 }}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            最先端のAI技術で画像・PDF内の違法転載を瞬時に検出。
+            <br />
+            Vision API + Gemini AIによる高精度な判定システム
+          </motion.p>
+
+          {/* 機能紹介 */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.7 }}
+            className="flex justify-center space-x-8 mb-8"
           >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+            <div className="flex flex-col items-center text-slate-300">
+              <EyeIcon className="w-8 h-8 text-blue-400 mb-2" />
+              <span className="text-sm font-medium">画像解析</span>
+            </div>
+            <div className="flex flex-col items-center text-slate-300">
+              <CpuChipIcon className="w-8 h-8 text-purple-400 mb-2" />
+              <span className="text-sm font-medium">AI判定</span>
+            </div>
+            <div className="flex flex-col items-center text-slate-300">
+              <ShieldCheckIcon className="w-8 h-8 text-green-400 mb-2" />
+              <span className="text-sm font-medium">安全確認</span>
+            </div>
+          </motion.div>
+        </motion.div>
+
+        {/* ファイルアップロード */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="mb-12"
         >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+          <FileUploader onFilesSelected={handleFilesSelected} />
+        </motion.div>
+
+        {/* 統計情報 */}
+        <AnimatePresence>
+          {files.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: -20 }}
+              transition={{ duration: 0.5 }}
+              className="mb-12"
+            >
+              <div className="glass-effect-dark rounded-2xl p-8 max-w-4xl mx-auto">
+                <h2 className="text-2xl font-bold text-white mb-6 text-center flex items-center justify-center">
+                  <DocumentTextIcon className="w-6 h-6 mr-2" />
+                  検出統計
+                </h2>
+                
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+                  <motion.div
+                    whileHover={{ scale: 1.05 }}
+                    className="text-center p-4 bg-slate-800/50 rounded-xl border border-slate-700/50"
+                  >
+                    <div className="text-3xl font-bold text-slate-200 mb-1">{stats.total}</div>
+                    <div className="text-sm text-slate-400">総ファイル数</div>
+                  </motion.div>
+                  
+                  <motion.div
+                    whileHover={{ scale: 1.05 }}
+                    className="text-center p-4 bg-green-500/10 rounded-xl border border-green-500/30"
+                  >
+                    <div className="text-3xl font-bold text-green-400 mb-1">{stats.ok}</div>
+                    <div className="text-sm text-green-300 flex items-center justify-center">
+                      <ShieldCheckIcon className="w-4 h-4 mr-1" />
+                      問題なし
+                    </div>
+                  </motion.div>
+                  
+                  <motion.div
+                    whileHover={{ scale: 1.05 }}
+                    className="text-center p-4 bg-red-500/10 rounded-xl border border-red-500/30"
+                  >
+                    <div className="text-3xl font-bold text-red-400 mb-1">{stats.ng}</div>
+                    <div className="text-sm text-red-300 flex items-center justify-center">
+                      <XCircleIcon className="w-4 h-4 mr-1" />
+                      違法転載
+                    </div>
+                  </motion.div>
+                  
+                  <motion.div
+                    whileHover={{ scale: 1.05 }}
+                    className="text-center p-4 bg-yellow-500/10 rounded-xl border border-yellow-500/30"
+                  >
+                    <div className="text-3xl font-bold text-yellow-400 mb-1">{stats.unknown}</div>
+                    <div className="text-sm text-yellow-300 flex items-center justify-center">
+                      <QuestionMarkCircleIcon className="w-4 h-4 mr-1" />
+                      判定不能
+                    </div>
+                  </motion.div>
+                </div>
+
+                {/* プログレスバー */}
+                {stats.total > 0 && (
+                  <div className="mt-6">
+                    <div className="flex justify-between text-sm text-slate-400 mb-2">
+                      <span>処理進捗</span>
+                      <span>{stats.completed}/{stats.total} 完了</span>
+                    </div>
+                    <div className="w-full bg-slate-700/50 rounded-full h-2">
+                      <motion.div
+                        className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${(stats.completed / stats.total) * 100}%` }}
+                        transition={{ duration: 0.5, ease: "easeOut" }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* 処理結果一覧 */}
+        <AnimatePresence>
+          {files.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="max-w-6xl mx-auto"
+            >
+              <motion.h2 
+                className="text-2xl font-bold text-white mb-8 flex items-center"
+                initial={{ x: -20 }}
+                animate={{ x: 0 }}
+              >
+                <EyeIcon className="w-6 h-6 mr-2 text-blue-400" />
+                検出結果
+              </motion.h2>
+              
+              <div className="space-y-6">
+                <AnimatePresence>
+                  {files.map((file, index) => (
+                    <motion.div
+                      key={file.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -20 }}
+                      transition={{ delay: index * 0.1 }}
+                    >
+                      <ResultDisplay
+                        file={file}
+                        onComplete={handleComplete}
+                        onStatusUpdate={handleStatusUpdate}
+                      />
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ダウンロードボタン */}
+        <AnimatePresence>
+          {history.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="mt-12 text-center"
+            >
+              <motion.button
+                onClick={() => {
+                  const dataStr = JSON.stringify(history, null, 2);
+                  const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+                  const exportFileDefaultName = `detection-history-${new Date().toISOString().slice(0,10)}.json`;
+                  const linkElement = document.createElement('a');
+                  linkElement.setAttribute('href', dataUri);
+                  linkElement.setAttribute('download', exportFileDefaultName);
+                  linkElement.click();
+                }}
+                className="btn-secondary inline-flex items-center space-x-2"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <ArrowDownTrayIcon className="w-5 h-5" />
+                <span>検出履歴をダウンロード</span>
+              </motion.button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </main>
   );
 }
