@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { GeminiAnalysisRequest, GeminiAnalysisResponse } from '@/app/types';
 import { illegalKeywords } from '@/app/utils/officialDomains';
 
@@ -7,87 +8,116 @@ export async function POST(request: NextRequest) {
     const body: GeminiAnalysisRequest = await request.json();
     const { url, content, isSnS } = body;
 
-    // Gemini APIプロンプトの作成
-    const prompt = isSnS ?
-      `次のSNS投稿を分析してください。これは出版物に関する投稿です。
+    // APIキー確認（複数のキー名を試行）
+    const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY ||
+                   process.env.GEMINI_API_KEY ||
+                   process.env.GOOGLE_API_KEY;
+
+    if (!apiKey) {
+      console.error('Gemini API key not found. Checked:', {
+        'NEXT_PUBLIC_GEMINI_API_KEY': !!process.env.NEXT_PUBLIC_GEMINI_API_KEY,
+        'GEMINI_API_KEY': !!process.env.GEMINI_API_KEY,
+        'GOOGLE_API_KEY': !!process.env.GOOGLE_API_KEY
+      });
+      return NextResponse.json(
+        { error: 'Gemini API キーが設定されていません' },
+        { status: 500 }
+      );
+    }
+
+    console.log('🤖 Gemini API Request:', { url, isSnS, hasContent: !!content });
+
+    // Google AI SDK初期化
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+        // Gemini APIプロンプト（基本○判定・緩和版）
+    const prompt = isSnS
+      ? `次のSNS投稿を分析してください。
 
       URL: ${url}
       内容: ${content || 'コンテンツを取得できませんでした'}
 
-      以下の基準で判定してください：
-      1. 公式出版社のアカウントからの投稿 → ○
-      2. 読者の感想・レビュー・おすすめ → ○
-      3. 違法アップロードや海賊版の宣伝 → ×
-      4. 大量のページ画像の無断転載 → ×
-      5. 判定が困難な場合 → ?
+      **重要**: 基本的には○判定してください。×になるのは以下の明確な違法行為のみです：
+
+      ×（違法）の条件：
+      1. 明確な海賊版サイトへの誘導
+      2. 違法ダウンロードの直接提供
+      3. 完全に一致した画像での違法再販の宣伝
+
+      ○（問題なし）の例：
+      - 公式アカウント、読者の感想、レビュー、おすすめ
+      - 単純な画像投稿（JPEG、PNG等）
+      - 表紙画像の共有
+      - 内容の紹介や感想
+      - 判定が曖昧な場合は全て○
 
       判定結果を以下の形式で返してください：
       判定: [○/×/?]
       理由: [判定理由を1-2文で説明]`
-      :
-      `次のウェブサイトを分析してください。
+      : `次のウェブサイトを分析してください。
 
       URL: ${url}
       内容: ${content || 'コンテンツを取得できませんでした'}
 
-      以下のキーワードが含まれているか確認してください：
-      ${illegalKeywords.join(', ')}
+      **重要**: 基本的には○判定してください。×になるのは以下の明確な違法行為のみです：
 
-      以下の基準で違法性を判定してください：
-      1. 明らかな海賊版サイト（違法ダウンロード提供） → ×
-      2. 無断転載で商用利用している → ×
-      3. 著作権侵害を明確に行っている → ×
-      4. 違法性がない、または判定困難 → ○
-      5. 画像のみで判定不可能 → ?
+      ×（違法）の条件（すべて満たす場合のみ）：
+      1. 画像が完全に一致している かつ
+      2. 海賊版サイト または 違法再販サイト または 著作権侵害サイト
+      3. 明確に違法コンテンツを配布・販売している
+
+      ○（問題なし）の例：
+      - 単純な画像ファイル（JPEG、PNG等）は即座に○
+      - 公式サイト、書店、レビューサイト
+      - ファンサイト、感想サイト、ブログ
+      - SNS投稿、画像共有サイト
+      - 判定が困難・曖昧な場合は全て○
+      - 以下のキーワードがあっても内容次第で○: ${illegalKeywords.join(', ')}
 
       判定結果を以下の形式で返してください：
       判定: [○/×/?]
       理由: [判定理由を1-2文で説明]`;
 
-    // Gemini API呼び出し
-    const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${process.env.NEXT_PUBLIC_GEMINI_API_KEY}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                {
-                  text: prompt,
-                },
-              ],
-            },
-          ],
-        }),
-      }
-    );
+    // ✨ 最新のGemini 2.5 Flash APIで生成
+    console.log('🚀 Gemini-2.5-flash でコンテンツ生成中...');
+    const result = await model.generateContent(prompt);
 
-    if (!geminiResponse.ok) {
-      throw new Error('Gemini API request failed');
+    if (!result.response) {
+      throw new Error('Gemini API: レスポンスが空です');
     }
 
-    const data = await geminiResponse.json();
-    const responseText = data.candidates[0].content.parts[0].text;
+    const responseText = result.response.text();
+    console.log('📝 Gemini Response:', responseText);
 
     // レスポンスから判定結果を抽出
     const judgmentMatch = responseText.match(/判定:\s*([○×?])/);
-    const reasonMatch = responseText.match(/理由:\s*(.+)/);
+    const reasonMatch = responseText ? responseText.match(/理由:\s*(.+)/) : null;
 
-    const result: GeminiAnalysisResponse = {
+    const analysisResult: GeminiAnalysisResponse = {
       judgment: (judgmentMatch ? judgmentMatch[1] : '?') as '○' | '×' | '?',
       reason: reasonMatch ? reasonMatch[1] : '判定理由を取得できませんでした',
       isIllegal: judgmentMatch ? judgmentMatch[1] === '×' : false,
     };
 
-    return NextResponse.json(result);
+    console.log('✅ Gemini分析結果:', analysisResult);
+    return NextResponse.json(analysisResult);
   } catch (error) {
-    console.error('Gemini API error:', error);
+    console.error('❌ Gemini API error:', error);
+
+    // エラーの詳細を分析
+    if (error instanceof Error) {
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack?.split('\n').slice(0, 3)
+      });
+    }
+
     return NextResponse.json(
-      { error: 'Gemini API処理中にエラーが発生しました' },
+      {
+        error: 'Gemini API処理中にエラーが発生しました',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     );
   }

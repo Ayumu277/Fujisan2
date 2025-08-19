@@ -40,7 +40,7 @@ export default function ResultDisplay({
       case '×':
         return <XCircleIcon className="w-8 h-8 text-red-400" />;
       case '?':
-        return <ExclamationTriangleIcon className="w-8 h-8 text-yellow-400" />;
+        return <ExclamationCircleIcon className="w-8 h-8 text-green-300" />;  // 黄色→緑系に変更
       default:
         return <ClockIcon className="w-8 h-8 text-gray-400" />;
     }
@@ -53,7 +53,7 @@ export default function ResultDisplay({
       case '×':
         return 'from-red-500 to-rose-600';
       case '?':
-        return 'from-yellow-500 to-orange-600';
+        return 'from-green-400 to-emerald-500';  // 黄色→緑系に変更（基本問題なし扱い）
       default:
         return 'from-gray-500 to-slate-600';
     }
@@ -66,7 +66,7 @@ export default function ResultDisplay({
       case '×':
         return 'bg-red-500/10 border-red-500/30';
       case '?':
-        return 'bg-yellow-500/10 border-yellow-500/30';
+        return 'bg-green-400/10 border-green-400/30';  // 黄色→緑系に変更
       default:
         return 'bg-gray-500/10 border-gray-500/30';
     }
@@ -95,12 +95,12 @@ export default function ResultDisplay({
     if (isOfficial) {
       return <ShieldCheckIcon className="w-4 h-4 text-green-400" />;
     }
-    if (domain.includes('twitter.com') || domain.includes('instagram.com') || 
-        domain.includes('youtube.com') || domain.includes('facebook.com') || 
+    if (domain.includes('twitter.com') || domain.includes('instagram.com') ||
+        domain.includes('youtube.com') || domain.includes('facebook.com') ||
         domain.includes('tiktok.com')) {
       return <UserGroupIcon className="w-4 h-4 text-blue-400" />;
     }
-    return <ExclamationCircleIcon className="w-4 h-4 text-yellow-400" />;
+    return <ExclamationCircleIcon className="w-4 h-4 text-green-300" />;
   };
 
   const getFavicon = (domain: string) => {
@@ -116,7 +116,7 @@ export default function ResultDisplay({
     >
       <div className="flex items-start space-x-6">
         {/* サムネイル */}
-        <motion.div 
+        <motion.div
           className="flex-shrink-0"
           whileHover={{ scale: 1.05 }}
           transition={{ duration: 0.2 }}
@@ -144,7 +144,7 @@ export default function ResultDisplay({
                 <span>{file.file.type}</span>
               </div>
             </div>
-            
+
             {/* ステータス表示 */}
             {file.status === 'completed' && file.result && (
               <motion.div
@@ -158,8 +158,8 @@ export default function ResultDisplay({
               >
                 {getJudgmentIcon(file.result.judgment)}
                 <span className="font-bold text-white text-lg">
-                  {file.result.judgment === '○' ? '安全' : 
-                   file.result.judgment === '×' ? '危険' : '不明'}
+                  {file.result.judgment === '○' ? '問題なし' :
+                   file.result.judgment === '×' ? '違法確定' : '判定保留'}
                 </span>
               </motion.div>
             )}
@@ -263,8 +263,8 @@ export default function ResultDisplay({
                                   </span>
                                   <span className={`
                                     px-2 py-1 rounded-full text-xs font-medium
-                                    ${result.isOfficial 
-                                      ? 'bg-green-500/20 text-green-400 border border-green-500/30' 
+                                    ${result.isOfficial
+                                      ? 'bg-green-500/20 text-green-400 border border-green-500/30'
                                       : 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
                                     }
                                   `}>
@@ -290,7 +290,7 @@ export default function ResultDisplay({
                                 <div className="mt-2 flex items-center space-x-2">
                                   <span className="text-xs text-slate-400">マッチタイプ:</span>
                                   <span className="px-2 py-1 bg-slate-700/50 rounded text-xs text-slate-300">
-                                    {result.matchType === 'exact' ? '完全一致' : 
+                                    {result.matchType === 'exact' ? '完全一致' :
                                      result.matchType === 'partial' ? '部分一致' : '関連画像'}
                                   </span>
                                 </div>

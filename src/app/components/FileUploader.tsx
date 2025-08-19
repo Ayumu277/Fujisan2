@@ -35,14 +35,31 @@ export default function FileUploader({ onFilesSelected }: FileUploaderProps) {
 
   const processFiles = async (files: File[]) => {
     setIsProcessing(true);
+
+    // 🔍 デバッグ: アップロードされたファイルの詳細をログ
+    console.log('=== ファイルアップロード詳細 ===');
+    files.forEach((file, index) => {
+      console.log(`📄 ファイル ${index + 1}:`, {
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        sizeKB: Math.round(file.size / 1024),
+        lastModified: new Date(file.lastModified).toISOString(),
+        isPDF: file.type === 'application/pdf',
+        isImage: file.type.startsWith('image/')
+      });
+    });
+
     await new Promise(resolve => setTimeout(resolve, 800)); // スムーズなアニメーションのための短い遅延
-    
+
     const uploadedFiles: UploadedFile[] = files.map((file) => ({
       id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       file,
       preview: URL.createObjectURL(file),
       status: 'waiting' as const,
     }));
+
+    console.log(`✅ ${uploadedFiles.length} ファイルの処理準備完了`);
     onFilesSelected(uploadedFiles);
     setIsProcessing(false);
   };
@@ -79,8 +96,8 @@ export default function FileUploader({ onFilesSelected }: FileUploaderProps) {
             glass-effect-dark rounded-3xl p-12 text-center
             border-2 border-dashed transition-all duration-500 ease-out
             hover-lift hover:scale-[1.02]
-            ${isDragOver 
-              ? 'border-blue-400 bg-blue-500/10 shadow-blue-500/25 shadow-2xl' 
+            ${isDragOver
+              ? 'border-blue-400 bg-blue-500/10 shadow-blue-500/25 shadow-2xl'
               : 'border-slate-600 hover:border-slate-500'
             }
             ${isProcessing ? 'pointer-events-none' : 'cursor-pointer'}
@@ -134,7 +151,7 @@ export default function FileUploader({ onFilesSelected }: FileUploaderProps) {
                       />
                     )}
                   </div>
-                  
+
                   <div className="flex justify-center space-x-4 mb-6">
                     <div className="flex items-center space-x-2 bg-slate-800/50 rounded-full px-4 py-2">
                       <PhotoIcon className="w-5 h-5 text-green-400" />
