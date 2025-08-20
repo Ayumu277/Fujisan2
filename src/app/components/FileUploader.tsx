@@ -33,6 +33,65 @@ export default function FileUploader({ onFilesSelected }: FileUploaderProps) {
     [onFilesSelected]
   );
 
+  const generatePdfPreview = async (file: File): Promise<string> => {
+    try {
+      // PDF.jsを使用してPDFの最初のページを画像として変換
+      const pdfjsLib = await import('pdfjs-dist');
+
+      if (typeof window !== 'undefined') {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
+      }
+
+      const arrayBuffer = await file.arrayBuffer();
+      const loadingTask = pdfjsLib.getDocument({
+        data: arrayBuffer,
+        verbosity: 0,
+        isEvalSupported: false
+      });
+
+      const pdf = await loadingTask.promise;
+      const page = await pdf.getPage(1); // 最初のページ
+
+      const scale = 1.0; // プレビュー用は低解像度でOK
+      const viewport = page.getViewport({ scale });
+
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d');
+
+      if (!context) {
+        throw new Error('Canvas context could not be created');
+      }
+
+      canvas.height = viewport.height;
+      canvas.width = viewport.width;
+
+      const renderContext = {
+        canvasContext: context,
+        viewport: viewport,
+        canvas: canvas,
+        intent: 'display'
+      };
+
+      await page.render(renderContext).promise;
+      await pdf.destroy();
+
+      // CanvasをBlobに変換してオブジェクトURL生成
+      return new Promise<string>((resolve, reject) => {
+        canvas.toBlob((blob) => {
+          if (blob) {
+            resolve(URL.createObjectURL(blob));
+          } else {
+            reject(new Error('Canvas to blob conversion failed'));
+          }
+        }, 'image/jpeg', 0.8);
+      });
+    } catch (error) {
+      console.error('PDF preview generation failed:', error);
+      // フォールバック: デフォルトのPDFアイコン的な何かを返す
+      return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTI4IiBoZWlnaHQ9IjEyOCIgdmlld0JveD0iMCAwIDEyOCAxMjgiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMjgiIGhlaWdodD0iMTI4IiBmaWxsPSIjMzc0MTUxIiByeD0iOCIvPgo8cGF0aCBkPSJNMzIgMzJoNjR2NjRIMzJ6IiBmaWxsPSIjNkI3MjgwIi8+Cjx0ZXh0IHg9IjY0IiB5PSI3MiIgZmlsbD0iI0Y5RkFGQiIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjE0IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5QREY8L3RleHQ+Cjwvc3ZnPgo=';
+    }
+  };
+
   const processFiles = async (files: File[]) => {
     setIsProcessing(true);
 
@@ -52,12 +111,29 @@ export default function FileUploader({ onFilesSelected }: FileUploaderProps) {
 
     await new Promise(resolve => setTimeout(resolve, 800)); // スムーズなアニメーションのための短い遅延
 
-    const uploadedFiles: UploadedFile[] = files.map((file) => ({
-      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      file,
-      preview: URL.createObjectURL(file),
-      status: 'waiting' as const,
-    }));
+    // ファイルごとにプレビューを生成
+    const uploadedFiles: UploadedFile[] = await Promise.all(
+      files.map(async (file) => {
+        let preview: string;
+
+        if (file.type === 'application/pdf') {
+          // PDFの場合は最初のページを画像として変換
+          console.log(`🔧 PDFプレビュー生成中: ${file.name}`);
+          preview = await generatePdfPreview(file);
+          console.log(`✅ PDFプレビュー生成完了: ${file.name}`);
+        } else {
+          // 画像ファイルの場合は従来通り
+          preview = URL.createObjectURL(file);
+        }
+
+        return {
+          id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          file,
+          preview,
+          status: 'waiting' as const,
+        };
+      })
+    );
 
     console.log(`✅ ${uploadedFiles.length} ファイルの処理準備完了`);
     onFilesSelected(uploadedFiles);

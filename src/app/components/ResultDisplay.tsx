@@ -104,7 +104,14 @@ export default function ResultDisplay({
   };
 
   const getFavicon = (domain: string) => {
-    return `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
+    // より確実なfavicon取得方法
+    try {
+      const cleanDomain = domain.replace(/^(https?:\/\/)?(www\.)?/, '');
+      return `https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://${cleanDomain}&size=32`;
+    } catch {
+      // フォールバック: デフォルトアイコン
+      return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiBmaWxsPSIjNjM2Njc4IiByeD0iNCIvPgo8cGF0aCBkPSJNMTYgOGE4IDggMCAxIDEgMCAxNiA4IDggMCAwIDEgMC0xNnoiIGZpbGw9IiNBM0E4QjgiLz4KPHN2Zz4K';
+    }
   };
 
   return (
@@ -249,7 +256,8 @@ export default function ResultDisplay({
                                   alt={`${result.domain} favicon`}
                                   className="w-8 h-8 rounded"
                                   onError={(e) => {
-                                    (e.target as HTMLImageElement).style.display = 'none';
+                                    // フォールバック画像を設定
+                                    (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiBmaWxsPSIjNjM2NjY4IiByeD0iNCIvPgo8cGF0aCBkPSJNMTYgOGE4IDggMCAxIDEgMCAxNiA4IDggMCAwIDEgMC0xNnoiIGZpbGw9IiNBM0E4QjgiLz4KPHN2Zz4K';
                                   }}
                                 />
                               </div>
