@@ -2,13 +2,13 @@
 
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  EyeIcon, 
-  MagnifyingGlassIcon, 
-  CpuChipIcon, 
+import {
+  EyeIcon,
+  MagnifyingGlassIcon,
+  CpuChipIcon,
   CheckCircleIcon,
   XCircleIcon,
-  ExclamationTriangleIcon 
+  ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
 import { UploadedFile, ProcessingResult, SearchResult } from '@/app/types';
 import { classifyDomain, extractDomain } from '@/app/utils/domainChecker';
@@ -46,7 +46,7 @@ export default function ProcessingPipeline({
       setCurrentStep('conversion');
       setStepDetails('ファイルを画像形式に変換しています...');
       setProgress(15);
-      
+
       const processedFiles = await processFile(file.file);
       setProgress(25);
 
@@ -54,7 +54,7 @@ export default function ProcessingPipeline({
       setCurrentStep('vision');
       setStepDetails('Google Vision APIで画像を解析しています...');
       setProgress(35);
-      
+
       const formData = new FormData();
       formData.append('image', processedFiles[0]);
 
@@ -89,7 +89,7 @@ if (!visionData.urls || visionData.urls.length === 0) {
       setCurrentStep('analysis');
       setStepDetails('検出されたURLを分析しています...');
       setProgress(65);
-      
+
       const searchResults: SearchResult[] = [];
       let finalJudgment: ProcessingResult['judgment'] = '○';
       let finalReason = '';
@@ -115,7 +115,7 @@ if (!visionData.urls || visionData.urls.length === 0) {
           setCurrentStep('gemini');
           setStepDetails('AI分析エンジンで詳細判定しています...');
           setProgress(80);
-          
+
           const geminiResponse = await fetch('/api/gemini', {
             method: 'POST',
             headers: {
@@ -247,14 +247,14 @@ if (!visionData.urls || visionData.urls.length === 0) {
         {steps.map((step, index) => {
           const isActive = step.id === currentStep;
           const isCompleted = steps.findIndex(s => s.id === currentStep) > index;
-          
+
           return (
             <motion.div
               key={step.id}
               className={`
                 flex items-center space-x-3 p-3 rounded-xl transition-all duration-300
-                ${isActive ? 'bg-blue-500/20 border border-blue-500/30' : 
-                  isCompleted ? 'bg-green-500/10 border border-green-500/20' : 
+                ${isActive ? 'bg-blue-500/20 border border-blue-500/30' :
+                  isCompleted ? 'bg-green-500/10 border border-green-500/20' :
                   'bg-slate-800/30 border border-slate-700/50'}
               `}
               initial={{ opacity: 0, x: -20 }}
@@ -263,8 +263,8 @@ if (!visionData.urls || visionData.urls.length === 0) {
             >
               <div className={`
                 flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold
-                ${isActive ? 'bg-blue-500 text-white' : 
-                  isCompleted ? 'bg-green-500 text-white' : 
+                ${isActive ? 'bg-blue-500 text-white' :
+                  isCompleted ? 'bg-green-500 text-white' :
                   'bg-slate-600 text-slate-400'}
               `}>
                 {isCompleted ? (
@@ -273,11 +273,11 @@ if (!visionData.urls || visionData.urls.length === 0) {
                   <span>{index + 1}</span>
                 )}
               </div>
-              
+
               <div className="flex-1">
                 <div className={`font-medium ${
-                  isActive ? 'text-blue-400' : 
-                  isCompleted ? 'text-green-400' : 
+                  isActive ? 'text-blue-400' :
+                  isCompleted ? 'text-green-400' :
                   'text-slate-400'
                 }`}>
                   {step.label}

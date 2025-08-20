@@ -1,5 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// Vision API型定義
+interface VisionImage {
+  url?: string;
+}
+
+interface VisionPage {
+  url?: string;
+}
+
+interface WebEntity {
+  entityId?: string;
+  description?: string;
+  score?: number;
+}
+
+interface BestGuessLabel {
+  label?: string;
+  languageCode?: string;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
@@ -157,21 +177,21 @@ export async function POST(request: NextRequest) {
 
     // 完全一致
     if (webDetection.fullMatchingImages?.length > 0) {
-      webDetection.fullMatchingImages.forEach((img: any) => {
+      webDetection.fullMatchingImages.forEach((img: VisionImage) => {
         if (img.url) allMatchingUrls.add(img.url);
       });
     }
 
     // 部分一致
     if (webDetection.partialMatchingImages?.length > 0) {
-      webDetection.partialMatchingImages.forEach((img: any) => {
+      webDetection.partialMatchingImages.forEach((img: VisionImage) => {
         if (img.url) allMatchingUrls.add(img.url);
       });
     }
 
     // ページ内の画像
     if (webDetection.pagesWithMatchingImages?.length > 0) {
-      webDetection.pagesWithMatchingImages.forEach((page: any) => {
+      webDetection.pagesWithMatchingImages.forEach((page: VisionPage) => {
         if (page.url) allMatchingUrls.add(page.url);
       });
     }
@@ -198,25 +218,25 @@ export async function POST(request: NextRequest) {
 
          // 類似画像の詳細をログ（デバッグ用のみ）
          console.log('🔍 類似画像詳細（参考用）:');
-         webDetection.visuallySimilarImages.slice(0, 3).forEach((img: any, i: number) => {
-           console.log(`  ${i+1}. ${img.url}`);
-         });
+                 webDetection.visuallySimilarImages.slice(0, 3).forEach((img: VisionImage, i: number) => {
+          console.log(`  ${i+1}. ${img.url}`);
+        });
        }
 
        // WebEntitiesの詳細
        if (webDetection.webEntities?.length > 0) {
          console.log('🏷️ WebEntities詳細:');
-         webDetection.webEntities.slice(0, 5).forEach((entity: any, i: number) => {
-           console.log(`  ${i+1}. ${entity.description} (score: ${entity.score})`);
-         });
+                 webDetection.webEntities.slice(0, 5).forEach((entity: WebEntity, i: number) => {
+          console.log(`  ${i+1}. ${entity.description} (score: ${entity.score})`);
+        });
        }
 
        // BestGuessLabelsの詳細
        if (webDetection.bestGuessLabels?.length > 0) {
          console.log('💡 BestGuess詳細:');
-         webDetection.bestGuessLabels.forEach((label: any, i: number) => {
-           console.log(`  ${i+1}. ${label.label} (lang: ${label.languageCode})`);
-         });
+                 webDetection.bestGuessLabels.forEach((label: BestGuessLabel, i: number) => {
+          console.log(`  ${i+1}. ${label.label} (lang: ${label.languageCode})`);
+        });
        }
      }
 

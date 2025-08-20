@@ -50,6 +50,7 @@ export async function convertPdfToImagesClient(file: File): Promise<Blob[]> {
        const renderContext = {
          canvasContext: context,
          viewport: viewport,
+         canvas: canvas,
          intent: 'display'  // 表示用に最適化
        };
 
