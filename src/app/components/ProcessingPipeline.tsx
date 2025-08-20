@@ -28,6 +28,7 @@ export default function ProcessingPipeline({
   const [progress, setProgress] = useState(0);
   const [currentStep, setCurrentStep] = useState('');
   const [stepDetails, setStepDetails] = useState('');
+  const [analyzingUrls, setAnalyzingUrls] = useState<{url: string; status: 'pending' | 'analyzing' | 'done'}[]>([]);
 
   useEffect(() => {
     processPipeline();
@@ -93,50 +94,132 @@ if (!visionData.urls || visionData.urls.length === 0) {
       const searchResults: SearchResult[] = [];
       let finalJudgment: ProcessingResult['judgment'] = '○';
       let finalReason = '';
-
-      for (const url of visionData.urls) {
+      
+      // URLリストを初期化
+      const urlStatusList = visionData.urls.map((url: string) => ({
+        url,
+        status: 'pending' as const
+      }));
+      setAnalyzingUrls(urlStatusList);
+      
+      // URLの分類とGeminiAPI呼び出しの準備
+      const urlAnalysisTasks = visionData.urls.map(async (url: string, index: number) => {
         const domain = extractDomain(url);
         const classification = classifyDomain(url);
-
-        searchResults.push({
+        
+        const searchResult: SearchResult = {
           url,
           domain,
           isOfficial: classification === 'official',
           matchType: 'exact', // TODO: Vision APIから実際のmatchTypeを取得
-        });
-
+        };
+        
+        // 公式ドメインの場合
         if (classification === 'official') {
-          // 公式ドメインなら即○
-          finalJudgment = '○';
-          finalReason = `公式ドメイン (${domain}) で確認されました`;
-          break;
-        } else if (classification === 'social' || classification === 'unofficial') {
-          // Gemini APIで詳細分析
-          setCurrentStep('gemini');
-          setStepDetails('AI分析エンジンで詳細判定しています...');
-          setProgress(80);
-
-          const geminiResponse = await fetch('/api/gemini', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              url,
-              isSnS: classification === 'social',
-            }),
-          });
-
-          if (geminiResponse.ok) {
-            const geminiData = await geminiResponse.json();
-            if (geminiData.judgment === '×') {
-              finalJudgment = '×';
-              finalReason = geminiData.reason;
-              break;
-            } else if (geminiData.judgment === '?') {
-              finalJudgment = '?';
-              finalReason = geminiData.reason;
+          return {
+            searchResult,
+            judgment: '○' as ProcessingResult['judgment'],
+            reason: `公式ドメイン (${domain}) で確認されました`,
+            isOfficial: true
+          };
+        }
+        
+        // SNSや非公式サイトの場合、GeminiAPIで分析
+        if (classification === 'social' || classification === 'unofficial') {
+          try {
+            // 分析開始を通知
+            setAnalyzingUrls(prev => {
+              const newList = [...prev];
+              newList[index] = { url, status: 'analyzing' };
+              return newList;
+            });
+            setStepDetails(`AI分析中: ${domain}`);
+            const geminiResponse = await fetch('/api/gemini', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                url,
+                isSnS: classification === 'social',
+              }),
+            });
+            
+            if (geminiResponse.ok) {
+              const geminiData = await geminiResponse.json();
+              // 分析完了を通知
+              setAnalyzingUrls(prev => {
+                const newList = [...prev];
+                newList[index] = { url, status: 'done' };
+                return newList;
+              });
+              return {
+                searchResult,
+                judgment: geminiData.judgment as ProcessingResult['judgment'],
+                reason: geminiData.reason,
+                isOfficial: false
+              };
+            } else {
+              // HTTPエラーの場合
+              console.error(`Gemini API HTTP error for ${url}: ${geminiResponse.status}`);
+              return {
+                searchResult,
+                judgment: '?' as ProcessingResult['judgment'],
+                reason: `AI分析でエラーが発生しました (${geminiResponse.status})`,
+                isOfficial: false
+              };
             }
+          } catch (error) {
+            console.error(`Gemini API error for ${url}:`, error);
+            return {
+              searchResult,
+              judgment: '?' as ProcessingResult['judgment'],
+              reason: 'AI分析でネットワークエラーが発生しました',
+              isOfficial: false
+            };
+          }
+        }
+        
+        // デフォルトケース
+        return {
+          searchResult,
+          judgment: '?' as ProcessingResult['judgment'],
+          reason: '判定できませんでした',
+          isOfficial: false
+        };
+      });
+      
+      // Gemini分析の並列実行
+      setCurrentStep('gemini');
+      setStepDetails(`AI分析エンジンで${visionData.urls.length}件のURLを分析中...`);
+      setProgress(80);
+      
+      // 全てのURL分析を並列実行
+      const analysisResults = await Promise.all(urlAnalysisTasks);
+      
+      // 結果の集約
+      let hasNegative = false;
+      let hasOfficial = false;
+      
+      for (const result of analysisResults) {
+        searchResults.push(result.searchResult);
+        
+        // 判定の収集
+        if (result.judgment === '×') {
+          hasNegative = true;
+          finalJudgment = '×';
+          finalReason = result.reason;
+          break; // ×が見つかったら即終了
+        } else if (result.isOfficial) {
+          hasOfficial = true;
+          if (!hasNegative) {
+            finalJudgment = '○';
+            finalReason = result.reason;
+          }
+        } else if (result.judgment === '?') {
+          if (!hasNegative && !hasOfficial) {
+            finalJudgment = '?';
+            finalReason = result.reason;
           }
         }
       }
@@ -241,6 +324,39 @@ if (!visionData.urls || visionData.urls.length === 0) {
           <span className="text-blue-400 font-semibold">{progress}%</span>
         </div>
       </div>
+
+      {/* AI分析の進捗表示 */}
+      {currentStep === 'gemini' && analyzingUrls.length > 0 && (
+        <div className="mb-6 p-4 bg-slate-800/50 rounded-xl border border-slate-700">
+          <h4 className="text-sm font-semibold text-blue-400 mb-3">AI分析進捗</h4>
+          <div className="space-y-2">
+            {analyzingUrls.map((item, idx) => {
+              const domain = item.url.match(/^https?:\/\/([^\/]+)/)?.[1] || item.url;
+              return (
+                <div key={idx} className="flex items-center gap-3 text-xs">
+                  <div className={`w-2 h-2 rounded-full ${
+                    item.status === 'done' ? 'bg-green-500' :
+                    item.status === 'analyzing' ? 'bg-blue-500 animate-pulse' :
+                    'bg-slate-600'
+                  }`} />
+                  <span className={`flex-1 truncate ${
+                    item.status === 'done' ? 'text-green-400' :
+                    item.status === 'analyzing' ? 'text-blue-400' :
+                    'text-slate-500'
+                  }`}>
+                    {domain}
+                  </span>
+                  <span className="text-slate-600">
+                    {item.status === 'done' ? '完了' :
+                     item.status === 'analyzing' ? '分析中...' :
+                     '待機中'}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* ステップ一覧 */}
       <div className="space-y-3">

@@ -9,6 +9,7 @@ interface VisionPage {
   url?: string;
 }
 
+
 interface WebEntity {
   entityId?: string;
   description?: string;
@@ -189,12 +190,21 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // ページ内の画像
-    if (webDetection.pagesWithMatchingImages?.length > 0) {
+    // 現在のURL数をチェック
+    const currentUrlCount = allMatchingUrls.size;
+    console.log('🔢 現在のURL数（関連ページ除く）:', currentUrlCount);
+
+    // 5件以下の場合のみ関連ページを追加
+    if (currentUrlCount <= 5 && webDetection.pagesWithMatchingImages?.length > 0) {
+      console.log('📄 URL数が5件以下のため、関連ページを追加します');
       webDetection.pagesWithMatchingImages.forEach((page: VisionPage) => {
         if (page.url) allMatchingUrls.add(page.url);
       });
+      console.log('📄 関連ページ追加後のURL数:', allMatchingUrls.size);
+    } else if (webDetection.pagesWithMatchingImages?.length > 0) {
+      console.log('⚠️ URL数が5件を超えているため、関連ページはスキップします');
     }
+
 
          // 🎯 最終結果の詳細ログ
      console.log('=== 最終結果サマリー ===');
@@ -202,8 +212,7 @@ export async function POST(request: NextRequest) {
      console.log('📊 カテゴリ別詳細:');
      console.log('  ✅ 完全一致:', webDetection.fullMatchingImages?.length || 0);
      console.log('  ⚡ 部分一致:', webDetection.partialMatchingImages?.length || 0);
-     console.log('  📄 関連ページ:', webDetection.pagesWithMatchingImages?.length || 0);
-     console.log('  ❌ 憎き類似:', webDetection.visuallySimilarImages?.length || 0, '(完全無視)');
+     console.log('  📄 関連ページ:', webDetection.pagesWithMatchingImages?.length || 0, currentUrlCount <= 5 ? '(追加済み)' : '(スキップ)');
      console.log('  🏷️ WebEntities:', webDetection.webEntities?.length || 0);
      console.log('  💡 BestGuess:', webDetection.bestGuessLabels?.length || 0);
 
@@ -211,17 +220,6 @@ export async function POST(request: NextRequest) {
        console.log('🚨🚨🚨 緊急事態: 確実に存在する画像が0件！');
        console.log('💀 これは絶対に異常です - 原因を特定する必要があります');
 
-       // 類似画像が検出されているかチェック
-       if (webDetection.visuallySimilarImages?.length > 0) {
-         console.log('🔥 重要発見: 類似画像は', webDetection.visuallySimilarImages.length, '件検出済み');
-         console.log('💡 つまり画像認識は正常 → API設定またはフィルタリングの問題');
-
-         // 類似画像の詳細をログ（デバッグ用のみ）
-         console.log('🔍 類似画像詳細（参考用）:');
-                 webDetection.visuallySimilarImages.slice(0, 3).forEach((img: VisionImage, i: number) => {
-          console.log(`  ${i+1}. ${img.url}`);
-        });
-       }
 
        // WebEntitiesの詳細
        if (webDetection.webEntities?.length > 0) {
@@ -251,9 +249,9 @@ export async function POST(request: NextRequest) {
          totalCategories: {
            fullMatch: webDetection.fullMatchingImages?.length || 0,
            partialMatch: webDetection.partialMatchingImages?.length || 0,
-           relatedPages: webDetection.pagesWithMatchingImages?.length || 0,
-           visuallySimilar: webDetection.visuallySimilarImages?.length || 0,
-           webEntities: webDetection.webEntities?.length || 0,
+          relatedPages: webDetection.pagesWithMatchingImages?.length || 0,
+          relatedPagesIncluded: currentUrlCount <= 5,
+             webEntities: webDetection.webEntities?.length || 0,
            bestGuess: webDetection.bestGuessLabels?.length || 0
          }
        }
