@@ -10,16 +10,7 @@ interface VisionPage {
 }
 
 
-interface WebEntity {
-  entityId?: string;
-  description?: string;
-  score?: number;
-}
 
-interface BestGuessLabel {
-  label?: string;
-  languageCode?: string;
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -220,32 +211,16 @@ export async function POST(request: NextRequest) {
      console.log('=== 最終結果サマリー ===');
      console.log('🎯 最終URL数:', allMatchingUrls.size);
      console.log('📊 カテゴリ別詳細:');
-     console.log('  ✅ 完全一致:', webDetection.fullMatchingImages?.length || 0);
-     console.log('  ⚡ 部分一致:', webDetection.partialMatchingImages?.length || 0);
-     console.log('  📄 関連ページ:', webDetection.pagesWithMatchingImages?.length || 0, currentUrlCount <= 5 ? '(追加済み)' : '(スキップ)');
-     console.log('  🏷️ WebEntities:', webDetection.webEntities?.length || 0);
-     console.log('  💡 BestGuess:', webDetection.bestGuessLabels?.length || 0);
+         console.log('  ✅ 完全一致:', webDetection.fullMatchingImages?.length || 0);
+    console.log('  ⚡ 部分一致:', webDetection.partialMatchingImages?.length || 0);
+    console.log('  📄 関連ページ:', webDetection.pagesWithMatchingImages?.length || 0, currentUrlCount <= 5 ? '(追加済み)' : '(スキップ)');
 
      if (allMatchingUrls.size === 0) {
        console.log('🚨🚨🚨 緊急事態: 確実に存在する画像が0件！');
        console.log('💀 これは絶対に異常です - 原因を特定する必要があります');
 
 
-       // WebEntitiesの詳細
-       if (webDetection.webEntities?.length > 0) {
-         console.log('🏷️ WebEntities詳細:');
-                 webDetection.webEntities.slice(0, 5).forEach((entity: WebEntity, i: number) => {
-          console.log(`  ${i+1}. ${entity.description} (score: ${entity.score})`);
-        });
-       }
-
-       // BestGuessLabelsの詳細
-       if (webDetection.bestGuessLabels?.length > 0) {
-         console.log('💡 BestGuess詳細:');
-                 webDetection.bestGuessLabels.forEach((label: BestGuessLabel, i: number) => {
-          console.log(`  ${i+1}. ${label.label} (lang: ${label.languageCode})`);
-        });
-       }
+       
      }
 
      console.log('=== 画像解析デバッグ終了 ===');
@@ -257,14 +232,12 @@ export async function POST(request: NextRequest) {
        debug: {
          imageSize: bytes.byteLength,
          base64Size: base64Image.length,
-         totalCategories: {
-           fullMatch: webDetection.fullMatchingImages?.length || 0,
-           partialMatch: webDetection.partialMatchingImages?.length || 0,
-          relatedPages: webDetection.pagesWithMatchingImages?.length || 0,
-          relatedPagesIncluded: currentUrlCount <= 5,
-             webEntities: webDetection.webEntities?.length || 0,
-           bestGuess: webDetection.bestGuessLabels?.length || 0
-         }
+                 totalCategories: {
+          fullMatch: webDetection.fullMatchingImages?.length || 0,
+          partialMatch: webDetection.partialMatchingImages?.length || 0,
+         relatedPages: webDetection.pagesWithMatchingImages?.length || 0,
+         relatedPagesIncluded: currentUrlCount <= 5
+        }
        }
      });
 

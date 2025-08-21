@@ -34,11 +34,6 @@ export interface VisionAPIResponse {
   error?: string;
   message?: string;
   webDetection?: {
-    webEntities?: Array<{
-      entityId?: string;
-      score: number;
-      description?: string;
-    }>;
     fullMatchingImages?: Array<{
       url: string;
     }>;
