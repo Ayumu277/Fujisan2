@@ -9,6 +9,55 @@ interface VisionPage {
   url?: string;
 }
 
+// 🚫 テキストベース検索結果を判定する関数
+function isTextBasedSearchResult(url: string): boolean {
+  const urlLower = url.toLowerCase();
+  
+  // URLにテキスト検索のキーワードが含まれている場合
+  const textSearchKeywords = [
+    'girl', 'girls', 'female', 'woman', 'women',
+    'search/', 'query=', 'q=', 'keyword=', 'tag=',
+    '/popular/', '/trending/', '/explore/',
+    'facts-about', 'know-about', 'types-of'
+  ];
+  
+  // テキスト検索を示すURLパターン
+  const textSearchPatterns = [
+    /\/search\/[^\/]*girl/i,
+    /\/search\/[^\/]*female/i,
+    /\/popular\/.*girl/i,
+    /\/tag\/.*girl/i,
+    /\/query.*girl/i,
+    /[?&]q=.*girl/i,
+    /[?&]search=.*girl/i,
+    /girl.*facts/i,
+    /facts.*girl/i,
+    /know.*about.*girl/i,
+    /types.*girl/i
+  ];
+  
+  // キーワードチェック
+  const hasTextKeyword = textSearchKeywords.some(keyword => urlLower.includes(keyword));
+  
+  // パターンチェック
+  const matchesTextPattern = textSearchPatterns.some(pattern => pattern.test(url));
+  
+  // テキスト検索サイトのドメイン（検索結果ページの可能性が高い）
+  const textSearchDomains = [
+    'shutterstock.com/search',
+    'istockphoto.com/photos',
+    'gettyimages.com/photos',
+    'steemit.com/girl',
+    'wattpad.com',
+    'lovepanky.com',
+    'tuko.co.ke'
+  ];
+  
+  const isTextSearchDomain = textSearchDomains.some(domain => urlLower.includes(domain));
+  
+  return hasTextKeyword || matchesTextPattern || isTextSearchDomain;
+}
+
 
 
 
@@ -91,9 +140,9 @@ export async function POST(request: NextRequest) {
               ],
               imageContext: {
                 webDetectionParams: {
-                  includeGeoResults: true  // 地理的結果を含める
-                },
-                languageHints: ['ja', 'en']  // 日本語と英語を優先
+                  includeGeoResults: false  // 地理的結果を含めない（テキスト検索防止）
+                }
+                // languageHints削除 - テキストベース検索を完全に無効化
               }
             }
           ]
@@ -192,16 +241,30 @@ export async function POST(request: NextRequest) {
     const currentUrlCount = allMatchingUrls.size;
     console.log('🔢 現在のURL数（関連ページ除く）:', currentUrlCount);
 
-    // 5件以下の場合のみ関連ページを追加
+    // 5件以下の場合のみ関連ページを追加（画像ベースのみ）
           if (currentUrlCount <= 5 && webDetection.pagesWithMatchingImages?.length > 0) {
-        console.log('📄 URL数が5件以下のため、関連ページを追加します');
+        console.log('📄 URL数が5件以下のため、関連ページを追加します（画像ベースのみフィルタリング）');
+        
+        let addedCount = 0;
+        let filteredCount = 0;
+        
         webDetection.pagesWithMatchingImages.forEach((page: VisionPage) => {
           if (page && page.url) {
+            // 🚫 テキストベース検索結果をフィルタリング
+            if (isTextBasedSearchResult(page.url)) {
+              filteredCount++;
+              console.log(`🚫 テキスト検索結果として除外: ${page.url}`);
+              return;
+            }
+            
             allMatchingUrls.add(page.url);
             urlsWithMatchType.push({ url: page.url, matchType: 'related' });
+            addedCount++;
+            console.log(`✅ 画像ベース関連ページとして追加: ${page.url}`);
           }
         });
-        console.log('📄 関連ページ追加後のURL数:', allMatchingUrls.size);
+        
+        console.log(`📄 関連ページ処理完了: 追加${addedCount}件, 除外${filteredCount}件, 最終URL数:${allMatchingUrls.size}件`);
       } else if (webDetection.pagesWithMatchingImages?.length > 0) {
         console.log('⚠️ URL数が5件を超えているため、関連ページはスキップします');
       }
@@ -220,7 +283,7 @@ export async function POST(request: NextRequest) {
        console.log('💀 これは絶対に異常です - 原因を特定する必要があります');
 
 
-       
+
      }
 
      console.log('=== 画像解析デバッグ終了 ===');
