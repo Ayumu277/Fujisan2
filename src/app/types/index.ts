@@ -20,12 +20,12 @@ export interface SearchResult {
   url: string;
   domain: string;
   isOfficial: boolean;
-  matchType: 'exact' | 'partial' | 'related';
+  matchType: 'exact' | 'partial';  // 'related'を削除（テキスト検索汚染防止）
 }
 
 export interface UrlWithMatchType {
   url: string;
-  matchType: 'exact' | 'partial' | 'related';
+  matchType: 'exact' | 'partial';  // 'related'を削除（テキスト検索汚染防止）
 }
 
 export interface VisionAPIResponse {

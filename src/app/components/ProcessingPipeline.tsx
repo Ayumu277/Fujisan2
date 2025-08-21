@@ -100,10 +100,9 @@ if (!visionData.urls || visionData.urls.length === 0) {
         const matchTypeStats = {
           exact: visionData.urlsWithMatchType.filter((item) => item && item.matchType === 'exact').length,
           partial: visionData.urlsWithMatchType.filter((item) => item && item.matchType === 'partial').length,
-          related: visionData.urlsWithMatchType.filter((item) => item && item.matchType === 'related').length,
         };
         console.log('🎯 マッチタイプ別統計:', matchTypeStats);
-        setStepDetails(`検出結果: 完全${matchTypeStats.exact}件, 部分${matchTypeStats.partial}件, 関連${matchTypeStats.related}件`);
+        setStepDetails(`検出結果: 完全${matchTypeStats.exact}件, 部分${matchTypeStats.partial}件`);
       }
 
       // URLリストを初期化

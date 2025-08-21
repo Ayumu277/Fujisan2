@@ -5,58 +5,8 @@ interface VisionImage {
   url?: string;
 }
 
-interface VisionPage {
-  url?: string;
-}
-
-// 🚫 テキストベース検索結果を判定する関数
-function isTextBasedSearchResult(url: string): boolean {
-  const urlLower = url.toLowerCase();
-  
-  // URLにテキスト検索のキーワードが含まれている場合
-  const textSearchKeywords = [
-    'girl', 'girls', 'female', 'woman', 'women',
-    'search/', 'query=', 'q=', 'keyword=', 'tag=',
-    '/popular/', '/trending/', '/explore/',
-    'facts-about', 'know-about', 'types-of'
-  ];
-  
-  // テキスト検索を示すURLパターン
-  const textSearchPatterns = [
-    /\/search\/[^\/]*girl/i,
-    /\/search\/[^\/]*female/i,
-    /\/popular\/.*girl/i,
-    /\/tag\/.*girl/i,
-    /\/query.*girl/i,
-    /[?&]q=.*girl/i,
-    /[?&]search=.*girl/i,
-    /girl.*facts/i,
-    /facts.*girl/i,
-    /know.*about.*girl/i,
-    /types.*girl/i
-  ];
-  
-  // キーワードチェック
-  const hasTextKeyword = textSearchKeywords.some(keyword => urlLower.includes(keyword));
-  
-  // パターンチェック
-  const matchesTextPattern = textSearchPatterns.some(pattern => pattern.test(url));
-  
-  // テキスト検索サイトのドメイン（検索結果ページの可能性が高い）
-  const textSearchDomains = [
-    'shutterstock.com/search',
-    'istockphoto.com/photos',
-    'gettyimages.com/photos',
-    'steemit.com/girl',
-    'wattpad.com',
-    'lovepanky.com',
-    'tuko.co.ke'
-  ];
-  
-  const isTextSearchDomain = textSearchDomains.some(domain => urlLower.includes(domain));
-  
-  return hasTextKeyword || matchesTextPattern || isTextSearchDomain;
-}
+// 注: VisionPageとisTextBasedSearchResult関数は削除
+// pagesWithMatchingImagesを完全無効化したため不要
 
 
 
@@ -215,7 +165,7 @@ export async function POST(request: NextRequest) {
 
     // 結果の収集（マッチタイプ付き）
     const allMatchingUrls = new Set<string>();
-    const urlsWithMatchType: { url: string; matchType: 'exact' | 'partial' | 'related' }[] = [];
+    const urlsWithMatchType: { url: string; matchType: 'exact' | 'partial' }[] = [];
 
     // 完全一致
     if (webDetection.fullMatchingImages?.length > 0) {
@@ -241,33 +191,12 @@ export async function POST(request: NextRequest) {
     const currentUrlCount = allMatchingUrls.size;
     console.log('🔢 現在のURL数（関連ページ除く）:', currentUrlCount);
 
-    // 5件以下の場合のみ関連ページを追加（画像ベースのみ）
-          if (currentUrlCount <= 5 && webDetection.pagesWithMatchingImages?.length > 0) {
-        console.log('📄 URL数が5件以下のため、関連ページを追加します（画像ベースのみフィルタリング）');
-        
-        let addedCount = 0;
-        let filteredCount = 0;
-        
-        webDetection.pagesWithMatchingImages.forEach((page: VisionPage) => {
-          if (page && page.url) {
-            // 🚫 テキストベース検索結果をフィルタリング
-            if (isTextBasedSearchResult(page.url)) {
-              filteredCount++;
-              console.log(`🚫 テキスト検索結果として除外: ${page.url}`);
-              return;
-            }
-            
-            allMatchingUrls.add(page.url);
-            urlsWithMatchType.push({ url: page.url, matchType: 'related' });
-            addedCount++;
-            console.log(`✅ 画像ベース関連ページとして追加: ${page.url}`);
-          }
-        });
-        
-        console.log(`📄 関連ページ処理完了: 追加${addedCount}件, 除外${filteredCount}件, 最終URL数:${allMatchingUrls.size}件`);
-      } else if (webDetection.pagesWithMatchingImages?.length > 0) {
-        console.log('⚠️ URL数が5件を超えているため、関連ページはスキップします');
-      }
+        // 🚫 pagesWithMatchingImagesを完全に無効化
+    // 理由: テキストベース検索が混入するため（画像ラベル抽出 → テキスト検索実行）
+    console.log('🚫 関連ページ（pagesWithMatchingImages）は画像ベース検索を汚染するため無効化しました');
+    if (webDetection.pagesWithMatchingImages?.length > 0) {
+      console.log(`📄 除外された関連ページ数: ${webDetection.pagesWithMatchingImages.length}件 (テキスト検索防止)`);
+    }
 
 
          // 🎯 最終結果の詳細ログ
@@ -276,7 +205,7 @@ export async function POST(request: NextRequest) {
      console.log('📊 カテゴリ別詳細:');
          console.log('  ✅ 完全一致:', webDetection.fullMatchingImages?.length || 0);
     console.log('  ⚡ 部分一致:', webDetection.partialMatchingImages?.length || 0);
-    console.log('  📄 関連ページ:', webDetection.pagesWithMatchingImages?.length || 0, currentUrlCount <= 5 ? '(追加済み)' : '(スキップ)');
+    console.log('  🚫 関連ページ:', webDetection.pagesWithMatchingImages?.length || 0, '(テキスト検索汚染のため無効化)');
 
      if (allMatchingUrls.size === 0) {
        console.log('🚨🚨🚨 緊急事態: 確実に存在する画像が0件！');
@@ -299,7 +228,7 @@ export async function POST(request: NextRequest) {
           fullMatch: webDetection.fullMatchingImages?.length || 0,
           partialMatch: webDetection.partialMatchingImages?.length || 0,
          relatedPages: webDetection.pagesWithMatchingImages?.length || 0,
-         relatedPagesIncluded: currentUrlCount <= 5
+         relatedPagesEnabled: false  // テキスト検索汚染防止のため無効化
         }
        }
      });

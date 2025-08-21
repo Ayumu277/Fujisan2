@@ -299,11 +299,9 @@ export default function ResultDisplay({
                                   <span className="text-xs text-slate-400">マッチタイプ:</span>
                                   <span className={`px-2 py-1 rounded text-xs ${
                                     result.matchType === 'exact' ? 'bg-red-600/20 text-red-300 border border-red-500/30' :
-                                    result.matchType === 'partial' ? 'bg-yellow-600/20 text-yellow-300 border border-yellow-500/30' :
-                                    'bg-blue-600/20 text-blue-300 border border-blue-500/30'
+                                    'bg-yellow-600/20 text-yellow-300 border border-yellow-500/30'
                                   }`}>
-                                    {result.matchType === 'exact' ? '🎯 完全一致' :
-                                     result.matchType === 'partial' ? '⚡ 部分一致' : '📄 関連ページ'}
+                                    {result.matchType === 'exact' ? '🎯 完全一致' : '⚡ 部分一致'}
                                   </span>
                                 </div>
                               </div>
