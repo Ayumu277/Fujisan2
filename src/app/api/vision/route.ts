@@ -180,7 +180,7 @@ export async function POST(request: NextRequest) {
     // 完全一致
     if (webDetection.fullMatchingImages?.length > 0) {
       webDetection.fullMatchingImages.forEach((img: VisionImage) => {
-        if (img.url) {
+        if (img && img.url) {
           allMatchingUrls.add(img.url);
           urlsWithMatchType.push({ url: img.url, matchType: 'exact' });
         }
@@ -190,7 +190,7 @@ export async function POST(request: NextRequest) {
     // 部分一致
     if (webDetection.partialMatchingImages?.length > 0) {
       webDetection.partialMatchingImages.forEach((img: VisionImage) => {
-        if (img.url) {
+        if (img && img.url) {
           allMatchingUrls.add(img.url);
           urlsWithMatchType.push({ url: img.url, matchType: 'partial' });
         }
@@ -205,7 +205,7 @@ export async function POST(request: NextRequest) {
           if (currentUrlCount <= 5 && webDetection.pagesWithMatchingImages?.length > 0) {
         console.log('📄 URL数が5件以下のため、関連ページを追加します');
         webDetection.pagesWithMatchingImages.forEach((page: VisionPage) => {
-          if (page.url) {
+          if (page && page.url) {
             allMatchingUrls.add(page.url);
             urlsWithMatchType.push({ url: page.url, matchType: 'related' });
           }

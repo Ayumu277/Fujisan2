@@ -98,9 +98,9 @@ if (!visionData.urls || visionData.urls.length === 0) {
       // マッチタイプ別統計情報をログ出力
       if (visionData.urlsWithMatchType) {
         const matchTypeStats = {
-          exact: visionData.urlsWithMatchType.filter((item) => item.matchType === 'exact').length,
-          partial: visionData.urlsWithMatchType.filter((item) => item.matchType === 'partial').length,
-          related: visionData.urlsWithMatchType.filter((item) => item.matchType === 'related').length,
+          exact: visionData.urlsWithMatchType.filter((item) => item && item.matchType === 'exact').length,
+          partial: visionData.urlsWithMatchType.filter((item) => item && item.matchType === 'partial').length,
+          related: visionData.urlsWithMatchType.filter((item) => item && item.matchType === 'related').length,
         };
         console.log('🎯 マッチタイプ別統計:', matchTypeStats);
         setStepDetails(`検出結果: 完全${matchTypeStats.exact}件, 部分${matchTypeStats.partial}件, 関連${matchTypeStats.related}件`);
@@ -119,7 +119,7 @@ if (!visionData.urls || visionData.urls.length === 0) {
         const classification = classifyDomain(url);
 
         // マッチタイプを取得（urlsWithMatchTypeから該当URLのmatchTypeを検索）
-        const matchTypeInfo = visionData.urlsWithMatchType?.find((item) => item.url === url);
+        const matchTypeInfo = visionData.urlsWithMatchType?.find((item) => item && item.url === url);
         const matchType = matchTypeInfo?.matchType || 'exact'; // デフォルトは'exact'
 
         const searchResult: SearchResult = {
@@ -346,6 +346,10 @@ if (!visionData.urls || visionData.urls.length === 0) {
           <h4 className="text-sm font-semibold text-blue-400 mb-3">AI分析進捗</h4>
           <div className="space-y-2">
             {analyzingUrls.map((item, idx) => {
+              // undefinedチェックを追加
+              if (!item || !item.url) {
+                return null;
+              }
               const domain = item.url.match(/^https?:\/\/([^\/]+)/)?.[1] || item.url;
               return (
                 <div key={idx} className="flex items-center gap-3 text-xs">
