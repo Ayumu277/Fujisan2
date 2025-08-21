@@ -20,11 +20,20 @@ export interface SearchResult {
   url: string;
   domain: string;
   isOfficial: boolean;
-  matchType: 'exact' | 'partial';
+  matchType: 'exact' | 'partial' | 'related';
+}
+
+export interface UrlWithMatchType {
+  url: string;
+  matchType: 'exact' | 'partial' | 'related';
 }
 
 export interface VisionAPIResponse {
-  webDetection: {
+  urls: string[];
+  urlsWithMatchType?: UrlWithMatchType[];
+  error?: string;
+  message?: string;
+  webDetection?: {
     webEntities?: Array<{
       entityId?: string;
       score: number;

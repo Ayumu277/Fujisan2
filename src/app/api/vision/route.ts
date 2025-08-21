@@ -173,20 +173,27 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 結果の収集
+    // 結果の収集（マッチタイプ付き）
     const allMatchingUrls = new Set<string>();
+    const urlsWithMatchType: { url: string; matchType: 'exact' | 'partial' | 'related' }[] = [];
 
     // 完全一致
     if (webDetection.fullMatchingImages?.length > 0) {
       webDetection.fullMatchingImages.forEach((img: VisionImage) => {
-        if (img.url) allMatchingUrls.add(img.url);
+        if (img.url) {
+          allMatchingUrls.add(img.url);
+          urlsWithMatchType.push({ url: img.url, matchType: 'exact' });
+        }
       });
     }
 
     // 部分一致
     if (webDetection.partialMatchingImages?.length > 0) {
       webDetection.partialMatchingImages.forEach((img: VisionImage) => {
-        if (img.url) allMatchingUrls.add(img.url);
+        if (img.url) {
+          allMatchingUrls.add(img.url);
+          urlsWithMatchType.push({ url: img.url, matchType: 'partial' });
+        }
       });
     }
 
@@ -195,15 +202,18 @@ export async function POST(request: NextRequest) {
     console.log('🔢 現在のURL数（関連ページ除く）:', currentUrlCount);
 
     // 5件以下の場合のみ関連ページを追加
-    if (currentUrlCount <= 5 && webDetection.pagesWithMatchingImages?.length > 0) {
-      console.log('📄 URL数が5件以下のため、関連ページを追加します');
-      webDetection.pagesWithMatchingImages.forEach((page: VisionPage) => {
-        if (page.url) allMatchingUrls.add(page.url);
-      });
-      console.log('📄 関連ページ追加後のURL数:', allMatchingUrls.size);
-    } else if (webDetection.pagesWithMatchingImages?.length > 0) {
-      console.log('⚠️ URL数が5件を超えているため、関連ページはスキップします');
-    }
+          if (currentUrlCount <= 5 && webDetection.pagesWithMatchingImages?.length > 0) {
+        console.log('📄 URL数が5件以下のため、関連ページを追加します');
+        webDetection.pagesWithMatchingImages.forEach((page: VisionPage) => {
+          if (page.url) {
+            allMatchingUrls.add(page.url);
+            urlsWithMatchType.push({ url: page.url, matchType: 'related' });
+          }
+        });
+        console.log('📄 関連ページ追加後のURL数:', allMatchingUrls.size);
+      } else if (webDetection.pagesWithMatchingImages?.length > 0) {
+        console.log('⚠️ URL数が5件を超えているため、関連ページはスキップします');
+      }
 
 
          // 🎯 最終結果の詳細ログ
@@ -240,9 +250,10 @@ export async function POST(request: NextRequest) {
 
      console.log('=== 画像解析デバッグ終了 ===');
 
-     return NextResponse.json({
-       urls: Array.from(allMatchingUrls),
-       webDetection: webDetection,
+         return NextResponse.json({
+      urls: Array.from(allMatchingUrls),
+      urlsWithMatchType: urlsWithMatchType,  // マッチタイプ情報も送信
+      webDetection: webDetection,
        debug: {
          imageSize: bytes.byteLength,
          base64Size: base64Image.length,

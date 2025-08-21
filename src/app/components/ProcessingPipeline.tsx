@@ -10,7 +10,7 @@ import {
   XCircleIcon,
   ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
-import { UploadedFile, ProcessingResult, SearchResult } from '@/app/types';
+import { UploadedFile, ProcessingResult, SearchResult, VisionAPIResponse } from '@/app/types';
 import { classifyDomain, extractDomain } from '@/app/utils/domainChecker';
 import { processFile } from '@/app/utils/pdfConverter';
 
@@ -64,7 +64,7 @@ export default function ProcessingPipeline({
         body: formData,
       });
 
-      const visionData = await visionResponse.json();
+      const visionData: VisionAPIResponse = await visionResponse.json();
       setProgress(50);
 
 // エラーチェック
@@ -94,26 +94,41 @@ if (!visionData.urls || visionData.urls.length === 0) {
       const searchResults: SearchResult[] = [];
       let finalJudgment: ProcessingResult['judgment'] = '○';
       let finalReason = '';
-      
+
+      // マッチタイプ別統計情報をログ出力
+      if (visionData.urlsWithMatchType) {
+        const matchTypeStats = {
+          exact: visionData.urlsWithMatchType.filter((item) => item.matchType === 'exact').length,
+          partial: visionData.urlsWithMatchType.filter((item) => item.matchType === 'partial').length,
+          related: visionData.urlsWithMatchType.filter((item) => item.matchType === 'related').length,
+        };
+        console.log('🎯 マッチタイプ別統計:', matchTypeStats);
+        setStepDetails(`検出結果: 完全${matchTypeStats.exact}件, 部分${matchTypeStats.partial}件, 関連${matchTypeStats.related}件`);
+      }
+
       // URLリストを初期化
       const urlStatusList = visionData.urls.map((url: string) => ({
         url,
         status: 'pending' as const
       }));
       setAnalyzingUrls(urlStatusList);
-      
+
       // URLの分類とGeminiAPI呼び出しの準備
       const urlAnalysisTasks = visionData.urls.map(async (url: string, index: number) => {
         const domain = extractDomain(url);
         const classification = classifyDomain(url);
-        
+
+        // マッチタイプを取得（urlsWithMatchTypeから該当URLのmatchTypeを検索）
+        const matchTypeInfo = visionData.urlsWithMatchType?.find((item) => item.url === url);
+        const matchType = matchTypeInfo?.matchType || 'exact'; // デフォルトは'exact'
+
         const searchResult: SearchResult = {
           url,
           domain,
           isOfficial: classification === 'official',
-          matchType: 'exact', // TODO: Vision APIから実際のmatchTypeを取得
+          matchType: matchType,
         };
-        
+
         // 公式ドメインの場合
         if (classification === 'official') {
           return {
@@ -123,7 +138,7 @@ if (!visionData.urls || visionData.urls.length === 0) {
             isOfficial: true
           };
         }
-        
+
         // SNSや非公式サイトの場合、GeminiAPIで分析
         if (classification === 'social' || classification === 'unofficial') {
           try {
@@ -144,7 +159,7 @@ if (!visionData.urls || visionData.urls.length === 0) {
                 isSnS: classification === 'social',
               }),
             });
-            
+
             if (geminiResponse.ok) {
               const geminiData = await geminiResponse.json();
               // 分析完了を通知
@@ -179,7 +194,7 @@ if (!visionData.urls || visionData.urls.length === 0) {
             };
           }
         }
-        
+
         // デフォルトケース
         return {
           searchResult,
@@ -188,22 +203,22 @@ if (!visionData.urls || visionData.urls.length === 0) {
           isOfficial: false
         };
       });
-      
+
       // Gemini分析の並列実行
       setCurrentStep('gemini');
       setStepDetails(`AI分析エンジンで${visionData.urls.length}件のURLを分析中...`);
       setProgress(80);
-      
+
       // 全てのURL分析を並列実行
       const analysisResults = await Promise.all(urlAnalysisTasks);
-      
+
       // 結果の集約
       let hasNegative = false;
       let hasOfficial = false;
-      
+
       for (const result of analysisResults) {
         searchResults.push(result.searchResult);
-        
+
         // 判定の収集
         if (result.judgment === '×') {
           hasNegative = true;
