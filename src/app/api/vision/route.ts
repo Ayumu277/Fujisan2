@@ -191,11 +191,20 @@ export async function POST(request: NextRequest) {
     const currentUrlCount = allMatchingUrls.size;
     console.log('🔢 現在のURL数（関連ページ除く）:', currentUrlCount);
 
-        // 🚫 pagesWithMatchingImagesを完全に無効化
-    // 理由: テキストベース検索が混入するため（画像ラベル抽出 → テキスト検索実行）
-    console.log('🚫 関連ページ（pagesWithMatchingImages）は画像ベース検索を汚染するため無効化しました');
-    if (webDetection.pagesWithMatchingImages?.length > 0) {
-      console.log(`📄 除外された関連ページ数: ${webDetection.pagesWithMatchingImages.length}件 (テキスト検索防止)`);
+    // 🎯 条件付き関連ページ追加（5件未満の場合のみ）
+    if (currentUrlCount < 5 && webDetection.pagesWithMatchingImages?.length > 0) {
+      console.log('📄 結果が5件未満のため関連ページを補完として追加します');
+      webDetection.pagesWithMatchingImages.forEach((page: any) => {
+        if (page && page.url && !allMatchingUrls.has(page.url)) {
+          allMatchingUrls.add(page.url);
+          urlsWithMatchType.push({ url: page.url, matchType: 'partial' }); // 関連ページは部分一致として扱う
+        }
+      });
+      console.log(`✅ 関連ページから${allMatchingUrls.size - currentUrlCount}件を追加`);
+    } else if (currentUrlCount >= 5) {
+      console.log('🚫 十分な結果があるため関連ページは無効化（テキスト検索汚染防止）');
+    } else {
+      console.log('📄 関連ページが存在しません');
     }
 
 
@@ -205,7 +214,9 @@ export async function POST(request: NextRequest) {
      console.log('📊 カテゴリ別詳細:');
          console.log('  ✅ 完全一致:', webDetection.fullMatchingImages?.length || 0);
     console.log('  ⚡ 部分一致:', webDetection.partialMatchingImages?.length || 0);
-    console.log('  🚫 関連ページ:', webDetection.pagesWithMatchingImages?.length || 0, '(テキスト検索汚染のため無効化)');
+    const relatedPagesCount = webDetection.pagesWithMatchingImages?.length || 0;
+    const relatedPagesUsed = currentUrlCount < 5 && relatedPagesCount > 0;
+    console.log('  📄 関連ページ:', relatedPagesCount, relatedPagesUsed ? '(補完として使用)' : '(条件により無効化)');
 
      if (allMatchingUrls.size === 0) {
        console.log('🚨🚨🚨 緊急事態: 確実に存在する画像が0件！');
@@ -228,7 +239,7 @@ export async function POST(request: NextRequest) {
           fullMatch: webDetection.fullMatchingImages?.length || 0,
           partialMatch: webDetection.partialMatchingImages?.length || 0,
          relatedPages: webDetection.pagesWithMatchingImages?.length || 0,
-         relatedPagesEnabled: false  // テキスト検索汚染防止のため無効化
+         relatedPagesEnabled: currentUrlCount < 5 && (webDetection.pagesWithMatchingImages?.length || 0) > 0
         }
        }
      });
