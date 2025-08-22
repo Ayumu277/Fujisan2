@@ -20,7 +20,7 @@ export default function FileUploader({ onFilesSelected }: FileUploaderProps) {
       const droppedFiles = Array.from(e.dataTransfer.files);
       processFiles(droppedFiles);
     },
-    [onFilesSelected]
+    [processFiles]
   );
 
   const handleFileInput = useCallback(
@@ -30,7 +30,7 @@ export default function FileUploader({ onFilesSelected }: FileUploaderProps) {
         processFiles(selectedFiles);
       }
     },
-    [onFilesSelected]
+    [processFiles]
   );
 
   const generatePdfPreview = async (file: File): Promise<string> => {
@@ -92,7 +92,7 @@ export default function FileUploader({ onFilesSelected }: FileUploaderProps) {
     }
   };
 
-  const processFiles = async (files: File[]) => {
+  const processFiles = useCallback(async (files: File[]) => {
     setIsProcessing(true);
 
     // 🔍 デバッグ: アップロードされたファイルの詳細をログ
@@ -138,7 +138,7 @@ export default function FileUploader({ onFilesSelected }: FileUploaderProps) {
     console.log(`✅ ${uploadedFiles.length} ファイルの処理準備完了`);
     onFilesSelected(uploadedFiles);
     setIsProcessing(false);
-  };
+  }, [onFilesSelected, setIsProcessing]);
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();

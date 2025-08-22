@@ -1,14 +1,12 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useEffect, useState, useCallback } from 'react';
+import { motion } from 'framer-motion';
 import {
   EyeIcon,
   MagnifyingGlassIcon,
   CpuChipIcon,
-  CheckCircleIcon,
-  XCircleIcon,
-  ExclamationTriangleIcon
+  CheckCircleIcon
 } from '@heroicons/react/24/outline';
 import { UploadedFile, ProcessingResult, SearchResult, VisionAPIResponse } from '@/app/types';
 import { classifyDomain, extractDomain } from '@/app/utils/domainChecker';
@@ -32,9 +30,9 @@ export default function ProcessingPipeline({
 
   useEffect(() => {
     processPipeline();
-  }, [file.id]);
+  }, [processPipeline]);
 
-  const processPipeline = async () => {
+  const processPipeline = useCallback(async () => {
     try {
       onStatusUpdate(file.id, 'processing');
       setCurrentStep('preparation');
@@ -272,7 +270,7 @@ if (!visionData.urls || visionData.urls.length === 0) {
         timestamp: new Date(),
       });
     }
-  };
+  }, [file, onStatusUpdate, onComplete]);
 
   const getStepIcon = (step: string) => {
     switch (step) {

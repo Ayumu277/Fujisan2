@@ -5,8 +5,10 @@ interface VisionImage {
   url?: string;
 }
 
-// 注: VisionPageとisTextBasedSearchResult関数は削除
-// pagesWithMatchingImagesを完全無効化したため不要
+interface VisionPage {
+  url: string;
+  pageTitle?: string;
+}
 
 
 
@@ -194,7 +196,7 @@ export async function POST(request: NextRequest) {
     // 🎯 条件付き関連ページ追加（5件未満の場合のみ）
     if (currentUrlCount < 5 && webDetection.pagesWithMatchingImages?.length > 0) {
       console.log('📄 結果が5件未満のため関連ページを補完として追加します');
-      webDetection.pagesWithMatchingImages.forEach((page: any) => {
+      webDetection.pagesWithMatchingImages.forEach((page: VisionPage) => {
         if (page && page.url && !allMatchingUrls.has(page.url)) {
           allMatchingUrls.add(page.url);
           urlsWithMatchType.push({ url: page.url, matchType: 'partial' }); // 関連ページは部分一致として扱う

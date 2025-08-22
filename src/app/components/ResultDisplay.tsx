@@ -2,10 +2,10 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import Image from 'next/image';
 import {
   CheckCircleIcon,
   XCircleIcon,
-  ExclamationTriangleIcon,
   ClockIcon,
   LinkIcon,
   GlobeAltIcon,
@@ -13,7 +13,6 @@ import {
   UserGroupIcon,
   ExclamationCircleIcon,
   ChevronDownIcon,
-  ChevronUpIcon,
   ArrowTopRightOnSquareIcon
 } from '@heroicons/react/24/outline';
 import { FaTwitter, FaInstagram, FaYoutube, FaFacebook, FaTiktok } from 'react-icons/fa';
@@ -46,18 +45,7 @@ export default function ResultDisplay({
     }
   };
 
-  const getJudgmentColor = (judgment: string) => {
-    switch (judgment) {
-      case '○':
-        return 'from-green-500 to-emerald-600';
-      case '×':
-        return 'from-red-500 to-rose-600';
-      case '?':
-        return 'from-green-400 to-emerald-500';  // 黄色→緑系に変更（基本問題なし扱い）
-      default:
-        return 'from-gray-500 to-slate-600';
-    }
-  };
+
 
   const getJudgmentBg = (judgment: string) => {
     switch (judgment) {
@@ -129,10 +117,13 @@ export default function ResultDisplay({
           transition={{ duration: 0.2 }}
         >
           <div className="relative">
-            <img
+            <Image
               src={file.preview}
               alt={file.file.name}
+              width={128}
+              height={128}
               className="w-32 h-32 object-cover rounded-2xl shadow-xl border-2 border-slate-600"
+              unoptimized
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent rounded-2xl" />
           </div>
@@ -251,10 +242,13 @@ export default function ResultDisplay({
                             <div className="flex items-start space-x-4">
                               {/* ファビコン */}
                               <div className="flex-shrink-0">
-                                <img
+                                <Image
                                   src={getFavicon(result.domain)}
                                   alt={`${result.domain} favicon`}
+                                  width={32}
+                                  height={32}
                                   className="w-8 h-8 rounded"
+                                  unoptimized
                                   onError={(e) => {
                                     // フォールバック画像を設定
                                     (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiBmaWxsPSIjNjM2NjY4IiByeD0iNCIvPgo8cGF0aCBkPSJNMTYgOGE4IDggMCAxIDEgMCAxNiA4IDggMCAwIDEgMC0xNnoiIGZpbGw9IiNBM0E4QjgiLz4KPHN2Zz4K';
