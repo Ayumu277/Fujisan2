@@ -13,6 +13,54 @@ export default function FileUploader({ onFilesSelected }: FileUploaderProps) {
   const [isDragOver, setIsDragOver] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
+  const processFiles = useCallback(async (files: File[]) => {
+    setIsProcessing(true);
+
+    // 🔍 デバッグ: アップロードされたファイルの詳細をログ
+    console.log('=== ファイルアップロード詳細 ===');
+    files.forEach((file, index) => {
+      console.log(`📄 ファイル ${index + 1}:`, {
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        sizeKB: Math.round(file.size / 1024),
+        lastModified: new Date(file.lastModified).toISOString(),
+        isPDF: file.type === 'application/pdf',
+        isImage: file.type.startsWith('image/')
+      });
+    });
+
+    await new Promise(resolve => setTimeout(resolve, 800)); // スムーズなアニメーションのための短い遅延
+
+    // ファイルごとにプレビューを生成
+    const uploadedFiles: UploadedFile[] = await Promise.all(
+      files.map(async (file) => {
+        let preview: string;
+
+        if (file.type === 'application/pdf') {
+          // PDFの場合は最初のページを画像として変換
+          console.log(`🔧 PDFプレビュー生成中: ${file.name}`);
+          preview = await generatePdfPreview(file);
+          console.log(`✅ PDFプレビュー生成完了: ${file.name}`);
+        } else {
+          // 画像ファイルの場合は従来通り
+          preview = URL.createObjectURL(file);
+        }
+
+        return {
+          id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          file,
+          preview,
+          status: 'waiting' as const,
+        };
+      })
+    );
+
+    console.log(`✅ ${uploadedFiles.length} ファイルの処理準備完了`);
+    onFilesSelected(uploadedFiles);
+    setIsProcessing(false);
+  }, [onFilesSelected, setIsProcessing]);
+
   const handleDrop = useCallback(
     (e: React.DragEvent<HTMLDivElement>) => {
       e.preventDefault();
@@ -91,54 +139,6 @@ export default function FileUploader({ onFilesSelected }: FileUploaderProps) {
       return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTI4IiBoZWlnaHQ9IjEyOCIgdmlld0JveD0iMCAwIDEyOCAxMjgiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMjgiIGhlaWdodD0iMTI4IiBmaWxsPSIjMzc0MTUxIiByeD0iOCIvPgo8cGF0aCBkPSJNMzIgMzJoNjR2NjRIMzJ6IiBmaWxsPSIjNkI3MjgwIi8+Cjx0ZXh0IHg9IjY0IiB5PSI3MiIgZmlsbD0iI0Y5RkFGQiIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjE0IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5QREY8L3RleHQ+Cjwvc3ZnPgo=';
     }
   };
-
-  const processFiles = useCallback(async (files: File[]) => {
-    setIsProcessing(true);
-
-    // 🔍 デバッグ: アップロードされたファイルの詳細をログ
-    console.log('=== ファイルアップロード詳細 ===');
-    files.forEach((file, index) => {
-      console.log(`📄 ファイル ${index + 1}:`, {
-        name: file.name,
-        type: file.type,
-        size: file.size,
-        sizeKB: Math.round(file.size / 1024),
-        lastModified: new Date(file.lastModified).toISOString(),
-        isPDF: file.type === 'application/pdf',
-        isImage: file.type.startsWith('image/')
-      });
-    });
-
-    await new Promise(resolve => setTimeout(resolve, 800)); // スムーズなアニメーションのための短い遅延
-
-    // ファイルごとにプレビューを生成
-    const uploadedFiles: UploadedFile[] = await Promise.all(
-      files.map(async (file) => {
-        let preview: string;
-
-        if (file.type === 'application/pdf') {
-          // PDFの場合は最初のページを画像として変換
-          console.log(`🔧 PDFプレビュー生成中: ${file.name}`);
-          preview = await generatePdfPreview(file);
-          console.log(`✅ PDFプレビュー生成完了: ${file.name}`);
-        } else {
-          // 画像ファイルの場合は従来通り
-          preview = URL.createObjectURL(file);
-        }
-
-        return {
-          id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          file,
-          preview,
-          status: 'waiting' as const,
-        };
-      })
-    );
-
-    console.log(`✅ ${uploadedFiles.length} ファイルの処理準備完了`);
-    onFilesSelected(uploadedFiles);
-    setIsProcessing(false);
-  }, [onFilesSelected, setIsProcessing]);
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();

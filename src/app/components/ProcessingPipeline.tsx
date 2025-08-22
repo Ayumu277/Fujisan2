@@ -30,7 +30,8 @@ export default function ProcessingPipeline({
 
   useEffect(() => {
     processPipeline();
-  }, [processPipeline]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [file.id]);
 
   const processPipeline = useCallback(async () => {
     try {
