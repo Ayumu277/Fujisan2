@@ -38,8 +38,10 @@ export default function ResultDisplay({
         return <CheckCircleIcon className="w-8 h-8 text-green-400" />;
       case '×':
         return <XCircleIcon className="w-8 h-8 text-red-400" />;
+      case '△':
+        return <ExclamationCircleIcon className="w-8 h-8 text-yellow-400" />;
       case '?':
-        return <ExclamationCircleIcon className="w-8 h-8 text-green-300" />;  // 黄色→緑系に変更
+        return <ClockIcon className="w-8 h-8 text-gray-400" />;
       default:
         return <ClockIcon className="w-8 h-8 text-gray-400" />;
     }
@@ -53,8 +55,10 @@ export default function ResultDisplay({
         return 'bg-green-500/10 border-green-500/30';
       case '×':
         return 'bg-red-500/10 border-red-500/30';
+      case '△':
+        return 'bg-yellow-500/10 border-yellow-500/30';
       case '?':
-        return 'bg-green-400/10 border-green-400/30';  // 黄色→緑系に変更
+        return 'bg-gray-500/10 border-gray-500/30';
       default:
         return 'bg-gray-500/10 border-gray-500/30';
     }
@@ -107,12 +111,12 @@ export default function ResultDisplay({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="glass-effect-dark rounded-2xl p-6 hover-lift"
+      className="glass-effect-dark rounded-2xl p-4 sm:p-6 hover-lift overflow-hidden w-full max-w-full"
     >
-      <div className="flex items-start space-x-6">
+      <div className="flex flex-col sm:flex-row items-start space-y-4 sm:space-y-0 sm:space-x-6">
         {/* サムネイル */}
         <motion.div
-          className="flex-shrink-0"
+          className="flex-shrink-0 mx-auto sm:mx-0"
           whileHover={{ scale: 1.05 }}
           transition={{ duration: 0.2 }}
         >
@@ -122,7 +126,7 @@ export default function ResultDisplay({
               alt={file.file.name}
               width={128}
               height={128}
-              className="w-32 h-32 object-cover rounded-2xl shadow-xl border-2 border-slate-600"
+              className="w-24 h-24 sm:w-32 sm:h-32 object-cover rounded-2xl shadow-xl border-2 border-slate-600"
               unoptimized
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent rounded-2xl" />
@@ -130,10 +134,10 @@ export default function ResultDisplay({
         </motion.div>
 
         {/* メイン内容 */}
-        <div className="flex-grow">
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <h3 className="text-xl font-bold text-white mb-1 truncate max-w-xs">
+        <div className="flex-grow w-full min-w-0">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-4 gap-2">
+            <div className="min-w-0 flex-grow">
+              <h3 className="text-lg sm:text-xl font-bold text-white mb-1 break-words">
                 {file.file.name}
               </h3>
               <div className="flex items-center space-x-2 text-slate-400 text-sm">
@@ -155,10 +159,10 @@ export default function ResultDisplay({
                 `}
               >
                 {getJudgmentIcon(file.result.judgment)}
-                <span className="font-bold text-white text-lg">
-                  {file.result.judgment === '○' ? '問題なし' :
-                   file.result.judgment === '×' ? '違法確定' : '判定保留'}
-                </span>
+                                 <span className="font-bold text-white text-lg">
+                   {file.result.judgment === '○' ? '問題なし' :
+                    file.result.judgment === '×' ? '違法確定' : '疑わしいリンクを検出'}
+                 </span>
               </motion.div>
             )}
           </div>
@@ -237,9 +241,9 @@ export default function ResultDisplay({
                             initial={{ opacity: 0, x: -20 }}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: index * 0.1 }}
-                            className="bg-slate-800/30 rounded-xl p-4 hover:bg-slate-800/50 transition-all duration-200 border border-slate-700/50"
+                            className="bg-slate-800/30 rounded-xl p-4 hover:bg-slate-800/50 transition-all duration-200 border border-slate-700/50 overflow-hidden"
                           >
-                            <div className="flex items-start space-x-4">
+                            <div className="flex items-start space-x-3 sm:space-x-4">
                               {/* ファビコン */}
                               <div className="flex-shrink-0">
                                 <Image
@@ -256,42 +260,83 @@ export default function ResultDisplay({
                                 />
                               </div>
 
-                              <div className="flex-grow min-w-0">
-                                {/* ドメイン情報 */}
-                                <div className="flex items-center space-x-2 mb-2">
-                                  {getDomainIcon(result.isOfficial, result.domain)}
-                                  <span className="text-white font-medium">
-                                    {result.domain}
-                                  </span>
-                                  <span className={`
-                                    px-2 py-1 rounded-full text-xs font-medium
-                                    ${result.isOfficial
-                                      ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                                      : 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
-                                    }
-                                  `}>
-                                    {result.isOfficial ? '公式' : '非公式'}
-                                  </span>
-                                  {getSocialIcon(result.domain)}
+                              <div className="flex-grow min-w-0 overflow-hidden">
+                                {/* 🎯 統一フォーマット: [ドメイン / 初期判定 / Gemini解析コメント / 最終判定 / 補足コメント] */}
+                                <div className="bg-slate-900/50 rounded-lg p-3 border border-slate-700/30 overflow-hidden">
+                                  <div className="space-y-3 text-sm">
+                                    {/* ドメインとドメインタイプ */}
+                                    <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                                      <span className="text-slate-400 text-xs uppercase font-medium">ドメイン:</span>
+                                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 min-w-0">
+                                        <span className="text-white font-medium truncate max-w-full">{result.domain}</span>
+                                        <span className="px-2 py-1 bg-blue-600/20 text-blue-300 rounded text-xs border border-blue-500/30 flex-shrink-0">
+                                          {result.domainType}
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    {/* 初期判定 */}
+                                    <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                                      <span className="text-slate-400 text-xs uppercase font-medium">初期判定:</span>
+                                      <span className={`px-2 py-1 rounded text-xs font-medium w-fit ${
+                                        result.initialJudgment === '○' ? 'bg-green-600/20 text-green-300 border border-green-500/30' :
+                                        result.initialJudgment === '△' ? 'bg-yellow-600/20 text-yellow-300 border border-yellow-500/30' :
+                                        result.initialJudgment === '?' ? 'bg-gray-600/20 text-gray-300 border border-gray-500/30' :
+                                        'bg-red-600/20 text-red-300 border border-red-500/30'
+                                      }`}>
+                                        {result.initialJudgment}
+                                      </span>
+                                    </div>
+
+                                    {/* Gemini解析コメント */}
+                                    <div className="flex flex-col gap-1">
+                                      <span className="text-slate-400 text-xs uppercase font-medium">解析:</span>
+                                      <span className="text-slate-200 break-words leading-relaxed">{result.analysisComment}</span>
+                                    </div>
+
+                                    {/* 最終判定 */}
+                                    <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                                      <span className="text-slate-400 text-xs uppercase font-medium">最終判定:</span>
+                                      <span className={`px-3 py-1 rounded-full text-sm font-bold border-2 w-fit ${
+                                        result.finalJudgment === '○' ? 'bg-green-600/30 text-green-200 border-green-400' :
+                                        result.finalJudgment === '△' ? 'bg-yellow-600/30 text-yellow-200 border-yellow-400' :
+                                        result.finalJudgment === '?' ? 'bg-gray-600/30 text-gray-200 border-gray-400' :
+                                        'bg-red-600/30 text-red-200 border-red-400'
+                                      }`}>
+                                        {result.finalJudgment}
+                                      </span>
+                                    </div>
+
+                                    {/* 補足コメント（ある場合のみ表示） */}
+                                    {result.supplement && (
+                                      <div className="flex flex-col gap-1">
+                                        <span className="text-slate-400 text-xs uppercase font-medium">補足:</span>
+                                        <span className="text-slate-300 break-words leading-relaxed italic">{result.supplement}</span>
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
 
                                 {/* URL リンク */}
-                                <a
-                                  href={result.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="group flex items-center space-x-2 text-blue-400 hover:text-blue-300 transition-colors duration-200"
-                                >
-                                  <span className="truncate text-sm">
-                                    {result.url}
-                                  </span>
-                                  <ArrowTopRightOnSquareIcon className="w-4 h-4 flex-shrink-0 opacity-60 group-hover:opacity-100" />
-                                </a>
+                                <div className="mt-3 p-2 bg-slate-800/30 rounded border border-slate-700/30 overflow-hidden">
+                                  <a
+                                    href={result.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="group flex items-start gap-2 text-blue-400 hover:text-blue-300 transition-colors duration-200"
+                                    title={result.url}
+                                  >
+                                    <span className="text-xs break-all leading-relaxed flex-1 min-w-0">
+                                      {result.url}
+                                    </span>
+                                    <ArrowTopRightOnSquareIcon className="w-4 h-4 flex-shrink-0 opacity-60 group-hover:opacity-100 mt-0.5" />
+                                  </a>
+                                </div>
 
                                 {/* マッチタイプ */}
-                                <div className="mt-2 flex items-center space-x-2">
-                                  <span className="text-xs text-slate-400">マッチタイプ:</span>
-                                  <span className={`px-2 py-1 rounded text-xs ${
+                                <div className="mt-2 flex flex-col sm:flex-row sm:items-center gap-2">
+                                  <span className="text-xs text-slate-400 uppercase font-medium">マッチタイプ:</span>
+                                  <span className={`px-2 py-1 rounded text-xs w-fit ${
                                     result.matchType === 'exact' ? 'bg-red-600/20 text-red-300 border border-red-500/30' :
                                     'bg-yellow-600/20 text-yellow-300 border border-yellow-500/30'
                                   }`}>

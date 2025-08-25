@@ -5,12 +5,15 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   ShieldCheckIcon,
   XCircleIcon,
-  QuestionMarkCircleIcon,
+  ExclamationTriangleIcon,
   DocumentTextIcon,
   ArrowDownTrayIcon,
   SparklesIcon,
   EyeIcon,
-  CpuChipIcon
+  CpuChipIcon,
+  CheckCircleIcon,
+  ClockIcon,
+  DocumentIcon
 } from '@heroicons/react/24/outline';
 import FileUploader from './components/FileUploader';
 import ResultDisplay from './components/ResultDisplay';
@@ -59,8 +62,9 @@ export default function Home() {
     const completed = files.filter(f => f.status === 'completed');
     const ok = completed.filter(f => f.result?.judgment === '○').length;
     const ng = completed.filter(f => f.result?.judgment === '×').length;
+    const suspicious = completed.filter(f => f.result?.judgment === '△').length;
     const unknown = completed.filter(f => f.result?.judgment === '?').length;
-    return { total: files.length, completed: completed.length, ok, ng, unknown };
+    return { total: files.length, completed: completed.length, ok, ng, suspicious, unknown };
   };
 
   const stats = getTotalStats();
@@ -83,7 +87,7 @@ export default function Home() {
             >
               <SparklesIcon className="w-12 h-12 text-blue-400" />
             </motion.div>
-            <motion.h1 
+            <motion.h1
               className="text-5xl font-bold bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 bg-clip-text text-transparent"
               initial={{ scale: 0.5 }}
               animate={{ scale: 1 }}
@@ -92,8 +96,8 @@ export default function Home() {
               AI違法転載検出システム
             </motion.h1>
           </div>
-          
-          <motion.p 
+
+          <motion.p
             className="text-xl text-slate-300 max-w-2xl mx-auto mb-8"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -151,8 +155,8 @@ export default function Home() {
                   <DocumentTextIcon className="w-6 h-6 mr-2" />
                   検出統計
                 </h2>
-                
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+
+                <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
                   <motion.div
                     whileHover={{ scale: 1.05 }}
                     className="text-center p-4 bg-slate-800/50 rounded-xl border border-slate-700/50"
@@ -160,7 +164,7 @@ export default function Home() {
                     <div className="text-3xl font-bold text-slate-200 mb-1">{stats.total}</div>
                     <div className="text-sm text-slate-400">総ファイル数</div>
                   </motion.div>
-                  
+
                   <motion.div
                     whileHover={{ scale: 1.05 }}
                     className="text-center p-4 bg-green-500/10 rounded-xl border border-green-500/30"
@@ -171,7 +175,7 @@ export default function Home() {
                       問題なし
                     </div>
                   </motion.div>
-                  
+
                   <motion.div
                     whileHover={{ scale: 1.05 }}
                     className="text-center p-4 bg-red-500/10 rounded-xl border border-red-500/30"
@@ -182,15 +186,26 @@ export default function Home() {
                       違法転載
                     </div>
                   </motion.div>
-                  
+
                   <motion.div
                     whileHover={{ scale: 1.05 }}
                     className="text-center p-4 bg-yellow-500/10 rounded-xl border border-yellow-500/30"
                   >
-                    <div className="text-3xl font-bold text-yellow-400 mb-1">{stats.unknown}</div>
+                    <div className="text-3xl font-bold text-yellow-400 mb-1">{stats.suspicious}</div>
                     <div className="text-sm text-yellow-300 flex items-center justify-center">
-                      <QuestionMarkCircleIcon className="w-4 h-4 mr-1" />
-                      判定不能
+                      <ExclamationTriangleIcon className="w-4 h-4 mr-1" />
+                      疑わしい
+                    </div>
+                  </motion.div>
+
+                  <motion.div
+                    whileHover={{ scale: 1.05 }}
+                    className="text-center p-4 bg-gray-500/10 rounded-xl border border-gray-500/30"
+                  >
+                    <div className="text-3xl font-bold text-gray-400 mb-1">{stats.unknown}</div>
+                    <div className="text-sm text-gray-300 flex items-center justify-center">
+                      <ClockIcon className="w-4 h-4 mr-1" />
+                      分析不可
                     </div>
                   </motion.div>
                 </div>
@@ -226,7 +241,7 @@ export default function Home() {
               exit={{ opacity: 0 }}
               className="max-w-6xl mx-auto"
             >
-              <motion.h2 
+              <motion.h2
                 className="text-2xl font-bold text-white mb-8 flex items-center"
                 initial={{ x: -20 }}
                 animate={{ x: 0 }}
@@ -234,7 +249,7 @@ export default function Home() {
                 <EyeIcon className="w-6 h-6 mr-2 text-blue-400" />
                 検出結果
               </motion.h2>
-              
+
               <div className="space-y-6">
                 <AnimatePresence>
                   {files.map((file, index) => (

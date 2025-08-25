@@ -8,8 +8,8 @@ import {
   CpuChipIcon,
   CheckCircleIcon
 } from '@heroicons/react/24/outline';
-import { UploadedFile, ProcessingResult, SearchResult, VisionAPIResponse } from '@/app/types';
-import { classifyDomain, extractDomain } from '@/app/utils/domainChecker';
+import { UploadedFile, ProcessingResult, SearchResult, VisionAPIResponse, GeminiImageComparisonRequest, GeminiImageComparisonResponse } from '@/app/types';
+import { classifyDomain, extractDomain, getDetailedDomainType, getInitialJudgment, isPremiumOfficialDomain, isSNSDomain, extractSNSInfo, isImageFile } from '@/app/utils/domainChecker';
 import { processFile } from '@/app/utils/pdfConverter';
 
 interface ProcessingPipelineProps {
@@ -55,6 +55,10 @@ export default function ProcessingPipeline({
       setStepDetails('Google Vision APIで画像を解析しています...');
       setProgress(35);
 
+      // 🎯 元画像のBase64データを保存（画像比較用）
+      const originalImageBuffer = await processedFiles[0].arrayBuffer();
+      const originalImageBase64 = Buffer.from(originalImageBuffer).toString('base64');
+
       const formData = new FormData();
       formData.append('image', processedFiles[0]);
 
@@ -74,7 +78,7 @@ if (visionData.error) {
 if (!visionData.urls || visionData.urls.length === 0) {
   // 検索結果がない場合
   const result: ProcessingResult = {
-    judgment: '?',
+    judgment: '△',
     reason: visionData.message || '画像の一致が見つかりませんでした',
     searchResults: [],
     timestamp: new Date(),
@@ -113,6 +117,32 @@ if (!visionData.urls || visionData.urls.length === 0) {
 
       // URLの分類とGeminiAPI呼び出しの準備
       const urlAnalysisTasks = visionData.urls.map(async (url: string, index: number) => {
+        // 🎯 画像ファイルの場合は即？判定
+        if (isImageFile(url)) {
+          const domain = extractDomain(url);
+          const matchTypeInfo = visionData.urlsWithMatchType?.find((item) => item && item.url === url);
+          const matchType = matchTypeInfo?.matchType || 'exact';
+
+          const searchResult: SearchResult = {
+            url,
+            domain,
+            domainType: '画像ファイル',
+            initialJudgment: '?',
+            finalJudgment: '?',
+            analysisComment: '画像ファイルのため分析不可',
+            supplement: '直接画像URLは判定対象外',
+            isOfficial: false,
+            matchType: matchType,
+          };
+
+          return {
+            searchResult,
+            judgment: '?' as ProcessingResult['judgment'],
+            reason: `画像ファイル (${domain})`,
+            isOfficial: false
+          };
+        }
+
         const domain = extractDomain(url);
         const classification = classifyDomain(url);
 
@@ -120,15 +150,38 @@ if (!visionData.urls || visionData.urls.length === 0) {
         const matchTypeInfo = visionData.urlsWithMatchType?.find((item) => item && item.url === url);
         const matchType = matchTypeInfo?.matchType || 'exact'; // デフォルトは'exact'
 
+        // 🎯 新しいロジックでSearchResultを構築
+        const domainType = getDetailedDomainType(domain);
+        const initialJudgment = getInitialJudgment(url);
+
         const searchResult: SearchResult = {
           url,
           domain,
-          isOfficial: classification === 'official',
+          domainType,
+          initialJudgment,
+          finalJudgment: initialJudgment,  // 初期値として設定
+          analysisComment: '分析中...',
+          supplement: '',
+          isOfficial: classification === 'official' || classification === 'premium-official',
           matchType: matchType,
         };
 
-        // 公式ドメインの場合
+        // 🎯 特別公式サイトの場合（問答無用で○、Gemini分析スキップ）
+        if (classification === 'premium-official') {
+          searchResult.finalJudgment = '○';
+          searchResult.analysisComment = '特別公式サイト';
+          return {
+            searchResult,
+            judgment: '○' as ProcessingResult['judgment'],
+            reason: `特別公式サイト (${domain}) で確認されました`,
+            isOfficial: true
+          };
+        }
+
+        // 通常公式ドメインの場合
         if (classification === 'official') {
+          searchResult.finalJudgment = '○';
+          searchResult.analysisComment = '公式ドメイン';
           return {
             searchResult,
             judgment: '○' as ProcessingResult['judgment'],
@@ -137,25 +190,90 @@ if (!visionData.urls || visionData.urls.length === 0) {
           };
         }
 
-        // SNSや非公式サイトの場合、GeminiAPIで分析
-        if (classification === 'social' || classification === 'unofficial') {
+        // 🎯 SNS・疑わしいドメイン・非公式サイトの場合、まず画像比較実行
+        if (classification === 'sns' || classification === 'suspicious' || classification === 'unofficial') {
           try {
-            // 分析開始を通知
+            // Step 1: 画像比較を先に実行
             setAnalyzingUrls(prev => {
               const newList = [...prev];
               newList[index] = { url, status: 'analyzing' };
               return newList;
             });
-            setStepDetails(`AI分析中: ${domain}`);
-            const geminiResponse = await fetch('/api/gemini', {
+            if (classification === 'sns') {
+              setStepDetails(`SNS画像比較中: ${domain} (${domainType})`);
+            } else {
+              setStepDetails(`画像比較中: ${domain} (${domainType})`);
+            }
+
+            const imageComparisonResponse = await fetch('/api/gemini', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
               },
               body: JSON.stringify({
-                url,
-                isSnS: classification === 'social',
-              }),
+                requestType: 'image_comparison',
+                originalImageBase64,
+                detectedImageUrl: url,
+                detectedDomain: domain,
+              } as GeminiImageComparisonRequest),
+            });
+
+            if (imageComparisonResponse.ok) {
+              const comparisonData: GeminiImageComparisonResponse = await imageComparisonResponse.json();
+              console.log('🖼️ 画像比較結果:', comparisonData);
+
+              // 🎯 画像が全く違う場合は即○判定
+              if (comparisonData.similarity === 'different') {
+                setAnalyzingUrls(prev => {
+                  const newList = [...prev];
+                  newList[index] = { url, status: 'done' };
+                  return newList;
+                });
+
+                searchResult.finalJudgment = '○';
+                searchResult.analysisComment = '異なる画像のため安全';
+                searchResult.supplement = comparisonData.reason;
+
+                return {
+                  searchResult,
+                  judgment: '○' as ProcessingResult['judgment'],
+                  reason: `異なる画像のため安全 (${domain}): ${comparisonData.reason}`,
+                  isOfficial: false
+                };
+              }
+
+              // 🎯 画像が類似/同一の場合は詳細分析継続
+              if (classification === 'sns') {
+                setStepDetails(`SNS分析中: ${domain} (公式アカウント判定)`);
+              } else {
+                setStepDetails(`詳細AI分析中: ${domain} (類似画像検出)`);
+              }
+            }
+
+            // Step 2: 詳細分析実行（SNS判定 or 画像比較失敗 or 類似/同一画像の場合）
+
+            // 🎯 SNSの場合はURL情報を抽出
+            const requestBody: {
+              url: string;
+              isSnS: boolean;
+              snsInfo?: ReturnType<typeof extractSNSInfo>;
+            } = {
+              url,
+              isSnS: classification === 'sns',
+            };
+
+            if (classification === 'sns') {
+              const snsInfo = extractSNSInfo(url);
+              requestBody.snsInfo = snsInfo;
+              setStepDetails(`SNS分析中: ${snsInfo.description}`);
+            }
+
+            const geminiResponse = await fetch('/api/gemini', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(requestBody),
             });
 
             if (geminiResponse.ok) {
@@ -166,6 +284,12 @@ if (!visionData.urls || visionData.urls.length === 0) {
                 newList[index] = { url, status: 'done' };
                 return newList;
               });
+
+              // 🎯 Gemini分析結果をSearchResultに反映
+              searchResult.finalJudgment = geminiData.judgment;
+              searchResult.analysisComment = geminiData.reason;
+              searchResult.supplement = geminiData.supplement || '';
+
               return {
                 searchResult,
                 judgment: geminiData.judgment as ProcessingResult['judgment'],
@@ -175,29 +299,35 @@ if (!visionData.urls || visionData.urls.length === 0) {
             } else {
               // HTTPエラーの場合
               console.error(`Gemini API HTTP error for ${url}: ${geminiResponse.status}`);
+              searchResult.finalJudgment = '△';
+              searchResult.analysisComment = `AI分析エラー (${geminiResponse.status})`;
               return {
                 searchResult,
-                judgment: '?' as ProcessingResult['judgment'],
+                judgment: '△' as ProcessingResult['judgment'],
                 reason: `AI分析でエラーが発生しました (${geminiResponse.status})`,
                 isOfficial: false
               };
             }
           } catch (error) {
             console.error(`Gemini API error for ${url}:`, error);
+            searchResult.finalJudgment = '△';
+            searchResult.analysisComment = 'AI分析エラー';
             return {
               searchResult,
-              judgment: '?' as ProcessingResult['judgment'],
+              judgment: '△' as ProcessingResult['judgment'],
               reason: 'AI分析でネットワークエラーが発生しました',
               isOfficial: false
             };
           }
         }
 
-        // デフォルトケース
+        // デフォルト：疑わしいとして判定
+        searchResult.finalJudgment = '△';
+        searchResult.analysisComment = '疑わしいドメイン';
         return {
           searchResult,
-          judgment: '?' as ProcessingResult['judgment'],
-          reason: '判定できませんでした',
+          judgment: '△' as ProcessingResult['judgment'],
+          reason: `疑わしいドメイン (${domainType})`,
           isOfficial: false
         };
       });
@@ -210,9 +340,12 @@ if (!visionData.urls || visionData.urls.length === 0) {
       // 全てのURL分析を並列実行
       const analysisResults = await Promise.all(urlAnalysisTasks);
 
-      // 結果の集約
+      // 🎯 結果の集約（△が1つでもあれば全体を△に）
       let hasNegative = false;
-      let hasOfficial = false;
+      let hasSuspicious = false;
+      let hasUnknown = false;
+      let suspiciousCount = 0;
+      let unknownCount = 0;
 
       for (const result of analysisResults) {
         searchResults.push(result.searchResult);
@@ -223,17 +356,23 @@ if (!visionData.urls || visionData.urls.length === 0) {
           finalJudgment = '×';
           finalReason = result.reason;
           break; // ×が見つかったら即終了
-        } else if (result.isOfficial) {
-          hasOfficial = true;
-          if (!hasNegative) {
-            finalJudgment = '○';
-            finalReason = result.reason;
-          }
+        } else if (result.judgment === '△') {
+          hasSuspicious = true;
+          suspiciousCount++;
         } else if (result.judgment === '?') {
-          if (!hasNegative && !hasOfficial) {
-            finalJudgment = '?';
-            finalReason = result.reason;
-          }
+          hasUnknown = true;
+          unknownCount++;
+        }
+      }
+
+      // 🎯 新しい判定ロジック：△や？が1つでもあれば全体を△（疑わしいリンクを検出）
+      if (!hasNegative) {
+        if (hasSuspicious || hasUnknown) {
+          finalJudgment = '△';
+          finalReason = '疑わしいリンクを検出';
+        } else {
+          finalJudgment = '○';
+          finalReason = '安全なリンクのみ検出されました';
         }
       }
 
@@ -245,7 +384,7 @@ if (!visionData.urls || visionData.urls.length === 0) {
       // 結果が設定されていない場合のデフォルト
       if (!finalReason) {
         if (searchResults.length === 0) {
-          finalJudgment = '?';
+          finalJudgment = '△';
           finalReason = '画像の一致が見つかりませんでした';
         } else {
           finalReason = '問題のある転載は検出されませんでした';
@@ -266,7 +405,7 @@ if (!visionData.urls || visionData.urls.length === 0) {
       console.error('Pipeline error:', error);
       onStatusUpdate(file.id, 'error');
       onComplete(file.id, {
-        judgment: '?',
+        judgment: '△',
         reason: 'エラーが発生しました: ' + (error as Error).message,
         timestamp: new Date(),
       });
