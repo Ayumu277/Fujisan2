@@ -78,8 +78,8 @@ if (visionData.error) {
 if (!visionData.urls || visionData.urls.length === 0) {
   // 検索結果がない場合
   const result: ProcessingResult = {
-    judgment: '△',
-    reason: visionData.message || '画像の一致が見つかりませんでした',
+    judgment: '○',
+    reason: '検出画像なし',
     searchResults: [],
     timestamp: new Date(),
   };

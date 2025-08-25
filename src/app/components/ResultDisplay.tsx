@@ -160,7 +160,8 @@ export default function ResultDisplay({
               >
                 {getJudgmentIcon(file.result.judgment)}
                                  <span className="font-bold text-white text-lg">
-                   {file.result.judgment === '○' ? '問題なし' :
+                   {file.result.judgment === '○' && file.result.reason === '検出画像なし' ? '検出画像なし' :
+                    file.result.judgment === '○' ? '問題なし' :
                     file.result.judgment === '×' ? '違法確定' : '疑わしいリンクを検出'}
                  </span>
               </motion.div>
