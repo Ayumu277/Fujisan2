@@ -87,7 +87,8 @@ export async function POST(request: NextRequest) {
               features: [
                 {
                   type: 'WEB_DETECTION',
-                  maxResults: 100  // 30→100に増加
+                  maxResults: 100,  // 30→100に増加
+                  model: 'builtin/latest'  // 🚀 最新モデルを明示的に指定
                 }
               ],
               imageContext: {
